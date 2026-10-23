@@ -1,0 +1,13 @@
+label,base_mean_auc,best_policy,best_mean_auc,mean_gain,c6r_gain,c10_gain,min_gain,dominant_att_slots,peak_discriminative_rows,noise_hazard_slot
+ACL,0.962,all_62,0.962,-0.0,0.0,0.0,0.0,"SagF (60.6%), SagS (24.9%)","r8(SagF), r9(SagF), r10(SagF)",CorS
+MCL,0.8537,cor_fluid,0.8628,0.0091,0.0136,0.0045,0.0045,"SagF (37.2%), CorF (34.9%)","r38(CorF), r39(CorF), r37(CorF)",SagS
+Medial Meniscus,0.9621,sagittal_both,0.9639,0.0018,0.0012,0.0024,0.0012,"SagF (60.7%), CorF (20.2%)","r40(CorF), r39(CorF), r3(SagF)",CorS
+Lateral Meniscus,0.854,all_62,0.854,-0.0,0.0,0.0,0.0,"SagF (58.9%), SagS (21.3%)","r48(CorS), r61(Ax), r14(SagF)",CorS
+Medial OA,0.9822,all_62,0.9822,0.0,0.0,0.0,0.0,"SagF (40.7%), SagS (25.9%)","r39(CorF), r4(SagF), r5(SagF)",None
+Lateral OA,0.8172,sag_struct,0.8404,0.0232,0.029,0.0174,0.0174,"SagF (46.3%), SagS (28.5%)","r19(SagS), r30(SagS), r29(SagS)",None
+PF OA,0.8391,sag_center,0.852,0.0129,0.0116,0.0142,0.0116,"SagF (47.3%), SagS (24.4%)","r9(SagF), r7(SagF), r8(SagF)",None
+Effusion,0.9373,all_62,0.9373,0.0,0.0,0.0,0.0,"SagF (52.1%), Ax (20.1%)","r14(SagF), r6(SagF), r5(SagF)",CorS
+Synovitis,0.8005,sag_peripheral,0.8154,0.0149,0.0215,0.0084,0.0084,"SagF (39.8%), CorF (19.7%)","r28(SagS), r11(SagF), r13(SagF)",CorS
+Baker's,0.9728,all_62,0.9728,-0.0,0.0,0.0,0.0,"SagF (52.4%), Ax (23.7%)","r58(Ax), r43(CorF), r57(Ax)",None
+Contusion,0.9494,all_62,0.9494,0.0,0.0,0.0,0.0,"SagF (48.8%), CorF (27.2%)","r14(SagF), r13(SagF), r15(SagF)",CorS
+Fracture,0.9292,all_62,0.9292,0.0,0.0,0.0,0.0,"SagF (43.4%), SagS (20.8%)","r10(SagF), r38(CorF), r39(CorF)",Ax

@@ -1,0 +1,28 @@
+H,comparison,value,rule,verdict
+H1,PF-v1 - C10 (PF),,>= +0.012 replicate; <= 0 not,missing
+H1,fusion - stack (PF),,>= +0.012 replicate; <= -0.012 not,missing
+H1,"PF-v2 - C10 (label effect, descriptive)",,descriptive,missing
+H1,"PF-v1 - PF-v2 (window effect, descriptive)",,descriptive,missing
+H2,4 readers: overrides - flat,,>0 signal; <0 public overfit; 0 below resolution,missing
+H2,3 readers: overrides - flat,,>0 signal; <0 public overfit; 0 below resolution,missing
+H2,both pairs,,same sign -> conclusion,undetermined
+H3,primary - hedge,,sign,missing
+H3,PF fusion part: primary - 56558421,,sign,missing
+H3,override part: 56558421 - hedge,,sign,missing
+H4,weak-4 mean (P1),,vs other-8 mean derived from 56558421,not clearly weaker
+H4,other-8 mean (derived),,(12*LB_full - 4*mean4)/8,
+H4,Synovitis - PF OA (P2 - P3),,descriptive,
+H4,public base - C6,,sign kept (> 0),changed
+H5,C10 - C6r,,<= -0.008 replicate; >= -0.004 not,missing
+H6,T - K (PF),,same sign as public and >= +0.012,missing
+H6,T - PF-v1 (PF),,same sign as public and >= +0.012,missing
+H7,C11 - ref,,"inside gold CI [-0.0275, -0.0020]?",missing
+H7,C8 - ref,,"inside gold CI [-0.0935, -0.0435]?",missing
+H7,C9b - ref,,"inside gold CI [-0.0314, +0.0088]?",missing
+H8,C10 s43 - C6r (whole),,<= -0.008 replicate; > -0.008 seed luck,missing
+H8,PF-v1 s43 - C10 s43 (PF),,>= +0.024 replicate; +0.012 edge; <= 0 not,missing
+H8,|C10 s43 - C10 s42| (whole),,descriptive noise,
+H8,|PF1 s43 - PF1 s42| (PF),,descriptive noise,
+H8,|C10 s43 - C10 s42| (PF),,descriptive noise,
+H9,Probe A: C6b - C6r (Eff+Cont),,<= -0.012 selective drop,missing
+H9,Probe B: C6b - C6r (ACL+MCL+MM+Bak),,|dB| <= 0.003 control preserved,missing

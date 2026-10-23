@@ -1,0 +1,4 @@
+parent,child,change,gold_a,gold_b,pub_a,pub_b,d_gold,d_pub
+C10,PF-v2,label-only,0.851,0.8134,0.86,0.872,-0.0376,0.012
+PF-v2,PF-v1,window,0.8134,0.8726,0.872,0.884,0.0592,0.012
+C10,PF-v1,label + window,0.851,0.8726,0.86,0.884,0.0216,0.024

@@ -1,0 +1,14 @@
+{
+  "id": "georgexue666/rsna-auth-probe-x1",
+  "title": "rsna auth probe x1",
+  "code_file": "probe.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ]
+}

@@ -1,0 +1,171 @@
+def write_submission(pred, studies, test_df, path):
+    sub = pd.DataFrame(pd.DataFrame(pred).rank(pct=True).values, columns=TARGETS)
+    sub.insert(0, 'StudyInstanceUID', studies)
+    sub = test_df[['StudyInstanceUID']].merge(sub, on='StudyInstanceUID', how='left')
+    sub[TARGETS] = sub[TARGETS].fillna(0.5)
+    sub.to_csv(path, index=False)
+    return sub
+
+def write_benchmark_submission():
+    t = pd.read_csv(ROOT / 'test.csv')
+    for c in TARGETS:
+        t[c] = 0.5
+    t.to_csv('submission.csv', index=False)
+
+def _v37_validate_submission(path, test_df, tag):
+    path = Path(path)
+    frame = pd.read_csv(path)
+    expected = ['StudyInstanceUID'] + TARGETS
+    if list(frame.columns) != expected:
+        raise ValueError(f'{tag}: columns differ from the competition contract')
+    if len(frame) != len(test_df) or not frame['StudyInstanceUID'].is_unique:
+        raise ValueError(f'{tag}: row count or StudyInstanceUID uniqueness failed')
+    if set(frame['StudyInstanceUID'].astype(str)) != set(test_df['StudyInstanceUID'].astype(str)):
+        raise ValueError(f'{tag}: StudyInstanceUID set differs from test.csv')
+    values = frame[TARGETS].to_numpy(np.float64)
+    if not np.isfinite(values).all():
+        raise ValueError(f'{tag}: non-finite prediction')
+    return test_df[['StudyInstanceUID']].merge(frame, on='StudyInstanceUID', how='left')
+
+
+def main():
+    write_benchmark_submission()
+    pkg = find_weights()
+    if pkg is not None:
+        dev = DEVS[0]
+        infer_from_package(pkg, dev)
+        try:
+            test_df = pd.read_csv(ROOT / 'test.csv')
+            native_path = Path('submission.csv')
+            public_path = Path('submission_public_0899.csv')
+            native = _v37_validate_submission(native_path, test_df, 'native 24-member')
+            public = _v37_validate_submission(public_path, test_df, 'public DINO frontier')
+            native.to_csv('submission_native_v38.csv', index=False)
+            public.to_csv(native_path, index=False)
+            promoted = _v37_validate_submission(native_path, test_df, 'V40 primary')
+            if not promoted.equals(public):
+                raise AssertionError('V40 serialization differs from validated public frontier')
+            log('V40 primary = exact no-jitter public-frontier target pooling; native 24-member output retained')
+        except Exception as public_frontier_error:
+            log(f'public-frontier promotion skipped safely: {public_frontier_error}')
+            traceback.print_exc()
+        log('done')
+        return
+    read_labels(pd.read_csv(ROOT / 'train.csv', usecols=['StudyInstanceUID', 'Report']))
+    test_df = pd.read_csv(ROOT / 'test.csv')
+    test_series = pd.read_csv(ROOT / 'test_series.csv')
+    train_df = pd.read_csv(ROOT / 'train.csv')
+    train_series = pd.read_csv(ROOT / 'train_series.csv')
+    log(f'train {train_df.shape} test {test_df.shape}')
+    both = pd.concat([train_series, test_series])
+    plane_map = dict(zip(both['SeriesInstanceUID'], both['Anatomical_Plane']))
+    log('header pass: test')
+    hte = annotate(walk('test_series'))
+    log(f'  {len(hte)} test series')
+    log('header pass: train')
+    htr = annotate(walk('train_series'))
+    log(f'  {len(htr)} train series')
+    slots_te, slots_tr = (pick_slots(hte, plane_map), pick_slots(htr, plane_map))
+    cov = pd.Series([len(v) for v in slots_tr.values()]).describe()
+    log(f"train slots per study: mean {cov['mean']:.2f} min {cov['min']:.0f} max {cov['max']:.0f}")
+    st_tr, Ctr, Mtr = build_cache(slots_tr, plane_map, lat_of(htr, 'train '), 'train')
+    st_te, Cte, Mte = build_cache(slots_te, plane_map, lat_of(hte, 'test '), 'test')
+    t_lab = time.time()
+    lab = read_labels(train_df)
+    log(f'derived labels for {len(lab)} studies in {time.time() - t_lab:.1f}s')
+    gold = train_df.set_index('StudyInstanceUID')[TARGETS]
+    gold = gold[gold.notna().all(axis=1)]
+    Y = np.zeros((len(st_tr), len(TARGETS)), np.float32)
+    W = np.zeros_like(Y)
+    for i, st in enumerate(st_tr):
+        if st in gold.index:
+            Y[i], W[i] = (gold.loc[st].values, 3.0)
+        elif st in lab.index:
+            r = lab.loc[st]
+            Y[i] = r[TARGETS].values
+            W[i] = 0.25 + 0.75 * r[[t + '__conf' for t in TARGETS]].values
+    keep = np.where(W.sum(1) > 0)[0]
+    log(f'supervised {len(keep)} of {len(st_tr)} studies (annotated {len(gold)})')
+    import hashlib
+    rep = train_df.set_index('StudyInstanceUID')['Report'].fillna('')
+    grp = np.array([int(hashlib.md5(rep.get(s, s).encode()).hexdigest()[:8], 16) % 5 for s in st_tr])
+    va = np.array([i for i in keep if grp[i] == 0])
+    tr = np.array([i for i in keep if grp[i] != 0])
+    if len(va) == 0 or len(tr) < BATCH_STUDIES:
+        cut = max(1, len(keep) // 5)
+        va, tr = (keep[:cut], keep[cut:])
+    log(f'train {len(tr)} / holdout {len(va)} studies')
+    gpos = {s: i for i, s in enumerate(st_tr)}
+    va_set = set(va.tolist())
+    gi = np.array([gpos[s] for s in gold.index if s in gpos and gpos[s] in va_set])
+    gold_y = gold.loc[[st_tr[i] for i in gi]].values.astype(int) if len(gi) else None
+    yv = (Y[va] > 0.5).astype(int)
+    log(f'annotation check: {len(gi)} of {len(gold)} annotated studies are in the holdout')
+    dev = DEVS[0]
+    results, test_preds = ({}, {})
+    for cfg in RUNS:
+        pitch = CROP_MM / cfg['img']
+        log(f"=== {cfg['name']}: {cfg['img']} px, {pitch:.3f} mm/pixel, {pitch * 14:.2f} mm per patch token ===")
+        torch.manual_seed(SEED)
+        model = build_model(UNFREEZE_LAST).to(dev)
+        opt = torch.optim.AdamW([{'params': [p for p in model.backbone.parameters() if p.requires_grad], 'lr': LR_BACKBONE}, {'params': model.head.parameters(), 'lr': LR_HEAD}], weight_decay=WEIGHT_DECAY)
+        steps = max(EPOCHS * (len(tr) // BATCH_STUDIES), 1)
+        sched = torch.optim.lr_scheduler.OneCycleLR(opt, max_lr=[LR_BACKBONE, LR_HEAD], total_steps=steps, pct_start=0.15)
+        scaler = torch.amp.GradScaler('cuda', enabled=dev.type == 'cuda')
+        best, best_state, best_annot = (-1.0, None, float('nan'))
+        for ep in range(EPOCHS):
+            model.train()
+            perm = np.random.permutation(tr)
+            tot, nstep = (0.0, 0)
+            for b in range(0, len(perm) - BATCH_STUDIES + 1, BATCH_STUDIES):
+                sel = perm[b:b + BATCH_STUDIES]
+                rows = torch.from_numpy(Ctr[sel]).to(dev)
+                g = int(torch.randint(N_GROUP, (1,)).item())
+                imgs = augment(take_group(rows, g))
+                m = torch.from_numpy(Mtr[sel]).to(dev)
+                y = torch.from_numpy(Y[sel]).to(dev)
+                w = torch.from_numpy(W[sel]).to(dev)
+                with torch.autocast('cuda', enabled=dev.type == 'cuda'):
+                    loss = (F.binary_cross_entropy_with_logits(model(imgs, m, cfg['img']), y, reduction='none') * w).mean()
+                opt.zero_grad(set_to_none=True)
+                scaler.scale(loss).backward()
+                scaler.step(opt)
+                scaler.update()
+                sched.step()
+                tot += loss.item()
+                nstep += 1
+            pv = predict(model, Ctr, Mtr, va, dev, cfg['img'])
+            d = macro_auc(yv, pv)
+            g_auc = float('nan')
+            if gold_y is not None and len(gi):
+                g_auc = macro_auc(gold_y, predict(model, Ctr, Mtr, gi, dev, cfg['img']))
+            log(f'  epoch {ep + 1}/{EPOCHS}  loss {tot / max(nstep, 1):.4f}  holdout {d:.4f}  annot(n={len(gi)}) {g_auc:.4f}')
+            if d > best:
+                best, best_annot = (d, g_auc)
+                best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+            if time.time() - T0 > TIME_BUDGET:
+                log('  time budget reached')
+                break
+        if best_state is not None:
+            model.load_state_dict(best_state)
+        results[cfg['name']] = (best, best_annot)
+        test_preds[cfg['name']] = predict(model, Cte, Mte, np.arange(len(st_te)), dev, cfg['img'])
+        log(f"  {cfg['name']}: best holdout {best:.4f} (annot {best_annot:.4f})")
+        del model, opt, sched, scaler, best_state
+        gc.collect()
+        if dev.type == 'cuda':
+            torch.cuda.empty_cache()
+    log('---- summary ----')
+    for n, (d, g_auc) in results.items():
+        log(f'  {n:12s} holdout {d:.4f}   annot {g_auc:.4f}')
+    pick = max(results, key=lambda k: results[k][0])
+    log(f'best on the holdout: {pick} ({results[pick][0]:.4f})')
+    for name, pred in test_preds.items():
+        sub = write_submission(pred, st_te, test_df, f'submission_{name}.csv')
+        log(f'  submission_{name}.csv {sub.shape}; nulls {int(sub[TARGETS].isna().sum().sum())}')
+    ens = np.mean([pd.DataFrame(p).rank(pct=True).values for p in test_preds.values()], axis=0)
+    write_submission(ens, st_te, test_df, 'submission_rankmean.csv')
+    log(f'  submission_rankmean.csv (rank mean of {len(test_preds)})')
+    sub = write_submission(test_preds[pick], st_te, test_df, 'submission.csv')
+    log(f'submission.csv = {pick}; {sub.shape}; nulls {int(sub[TARGETS].isna().sum().sum())}')
+    print(sub.head().to_string())

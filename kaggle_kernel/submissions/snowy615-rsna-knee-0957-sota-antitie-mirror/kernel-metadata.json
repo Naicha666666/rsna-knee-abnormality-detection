@@ -1,0 +1,20 @@
+{
+  "id": "snowy615/rsna-knee-0957-sota-antitie-mirror",
+  "title": "RSNA Knee 0.957 SOTA Multi-Scale Anti-Tie Mirror",
+  "code_file": "rsna-knee-0957-sota-antitie-mirror.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "heliosli/rsna-knee-compact-r7cnxfsss",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

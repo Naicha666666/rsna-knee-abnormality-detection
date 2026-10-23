@@ -1,0 +1,22 @@
+{
+  "id": "snowy615/rsna-knee-0-958-super-fusion-v4-ep8",
+  "title": "RSNA Knee 0.958 Super-Fusion v4 Ep8",
+  "code_file": "rsna-knee-0958-superfusion-v4-ep8.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "rostigor/rsna-knee-r6-fe055406",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "snowy615/rsna-knee-c6-warmstart-ep8-weights"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}

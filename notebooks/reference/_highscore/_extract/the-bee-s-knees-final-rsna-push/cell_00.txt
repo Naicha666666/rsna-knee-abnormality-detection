@@ -1,0 +1,42 @@
+# 🐝 The bee's knees — final RSNA push
+
+> **A reproducible 0.937 reference, an auditable inference graph, and a disciplined path beyond it.**
+
+<!-- BEE_HERO_IMAGE_V5 -->
+<p align="center">
+  <img src="https://external-content.duckduckgo.com/iu/?u=https%3A%2F%2Fi.pinimg.com%2Foriginals%2F6d%2F9a%2F66%2F6d9a6607807bd18259e29e645637a3bc.jpg&amp;f=1&amp;nofb=1&amp;ipt=a39b69db803d006870a84cc8bb5839e9cc85d379b20f87d400016793642da7cc" alt="The bee's knees hero illustration" width="720">
+</p>
+<p align="center"><em>A visual mnemonic for the final push—not clinical evidence.</em></p>
+
+This notebook starts from Renta K.'s Apache-2.0 weak-label DINOv2 Medial Meniscus residual, layered onto the preserved H&S four-arm inference lineage. The scored model cells remain source-faithful; Bee adds a pinned checkpoint mirror, deterministic overlay, and fail-closed receipts.
+
+## At a glance
+
+| Layer | What it contributes | Evidence |
+|---|---|---|
+| H&S V38 parent | DINOv2 + cross-series DINOv3 + RadImageNet + four-view Raptor | exact completed public **0.936** parent |
+| public0033 specialist | DINOv2-Base weak-label bag for **Medial Meniscus** only | source notebook completed public **0.937** |
+| Bee reproducibility shell | version-pinned weights, identity/order checks, SHA-256 receipts | exact completed public **0.937** · submission `56016348` |
+| V6 outer-weight candidate | five fixed Transformer/Raptor target weights; no new model | exact V38 Gold58 `.941932 → .947966` · submission `56026992` pending |
+| V7 disjoint frontier graft | public 0.938 MCL + Medial OA orders, preserving V6 Lateral OA | three disjoint rank changes · official score pending |
+
+The `.937` specialist changes exactly one target: `0.30 × Transformer rank + 0.60 × Raptor rank + 0.10 × bag rank` for Medial Meniscus. V6 then applies five fixed outer weights to already-computed Transformer/Raptor ranks—ACL `0.80`, Lateral OA/PF OA/Synovitis `0.35`, and Baker's `0.375`—while preserving the bag-enhanced Medial Meniscus and every other column. V7 adds only the MCL and Medial OA orders from Mattia Angeli's scored 0.938 Version 1; on the visible test these are disjoint from V6's sole changed rank order, Lateral OA.
+
+## Why experts may care
+
+- **Minimal causal diff:** one bag specialist plus five fixed outer-weight changes over components already computed in memory.
+- **No silent fallbacks:** schema, study order, finiteness, range, and parent lineage are checked before a receipt is emitted.
+- **Reproducible dependency:** the previously unversioned public0033 checkpoint is mirrored privately, pinned to V1, and verified by SHA-256.
+- **Honest frontier audit:** Anhad Mahajan's broad V47 pipeline was checked as a complementary teacher/ablation source. Its exact public score is **0.936**, so Bee does not blindly replace the stronger 0.937 residual with it.
+
+## Evidence boundary
+
+The competition metric is macro-average ROC AUC over twelve abnormalities. Bee submission `56016348` is now an exact completed Kaggle row with public score **0.937**. The `0.941` goal remains unclaimed until Kaggle exposes another completed server row with a non-empty score at or above that threshold.
+
+Future specialists must pass fold-safe OOF plus an untouched holdout gate before deployment. Leaderboard feedback is confirmation, not a hyperparameter search.
+
+## Sources and attribution
+
+- [Renta K. — RSNA Knee 0.937 | Weak-Label DINOv2 Meniscus Resid](https://www.kaggle.com/code/renta0426/rsna-knee-0-937-weak-label-dinov2-meniscus-resid) (Apache 2.0)
+- [Anhad Mahajan — RSNA Knee: Take Care Of Your Knee](https://www.kaggle.com/code/anhadmahajan06/rsna-knee-take-care-of-your-knee) (Apache 2.0; verified V47 public 0.936)
+- [RSNA Knee Abnormality Detection](https://www.kaggle.com/competitions/rsna-knee-abnormality-detection)

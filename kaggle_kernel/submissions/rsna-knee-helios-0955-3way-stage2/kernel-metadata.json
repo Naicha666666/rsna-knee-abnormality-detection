@@ -1,0 +1,21 @@
+{
+  "id": "easonyanyan/rsna-knee-helios-0955-3way-stage2",
+  "title": "RSNA Knee Helios 0955 3Way Stage2",
+  "code_file": "rsna-knee-helios-0955-3way-stage2.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "heliosli/rsna-knee-compact-v1",
+    "heliosli/rsna-knee-compact-r6cnxfsss"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

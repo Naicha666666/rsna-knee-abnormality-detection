@@ -1,0 +1,237 @@
+# -------------------- V16 trained slot-head residual --------------------
+
+from pathlib import Path as _V16Path
+import json as _v16_json
+import numpy as _v16_np
+import pandas as _v16_pd
+
+class _V16SlotAttentionHead(nn.Module):
+    def __init__(self, feature_dim, hidden=384, n_target=12, n_slot=6):
+        super().__init__()
+        self.feature_dim = int(feature_dim)
+        self.hidden = int(hidden)
+        self.n_target = int(n_target)
+        self.n_slot = int(n_slot)
+
+        self.proj = nn.Sequential(
+            nn.LayerNorm(feature_dim),
+            nn.Linear(feature_dim, hidden),
+            nn.GELU(),
+        )
+        self.slot_emb = nn.Parameter(torch.zeros(n_slot, hidden))
+        self.query = nn.Parameter(torch.zeros(n_target, hidden))
+        self.attn = nn.MultiheadAttention(
+            hidden,
+            num_heads=6,
+            dropout=0.10,
+            batch_first=True,
+        )
+        self.fuse = nn.Sequential(
+            nn.LayerNorm(hidden * 5),
+            nn.Linear(hidden * 5, hidden),
+            nn.GELU(),
+            nn.Dropout(0.16),
+        )
+        self.target_weight = nn.Parameter(torch.empty(n_target, hidden))
+        self.target_bias = nn.Parameter(torch.zeros(n_target))
+
+    def forward(self, features, slot_mask):
+        mask = slot_mask.bool()
+        x = self.proj(features.float()) + self.slot_emb.unsqueeze(0)
+        x = x * mask.unsqueeze(-1)
+        denom = mask.sum(dim=1, keepdim=True).clamp(min=1).unsqueeze(-1)
+        mean = x.sum(dim=1, keepdim=True) / denom
+
+        query = self.query.unsqueeze(0).expand(len(x), -1, -1)
+        attended, _ = self.attn(
+            query,
+            x,
+            x,
+            key_padding_mask=~mask,
+            need_weights=False,
+        )
+        global_target = mean.expand(-1, self.n_target, -1)
+        fused = torch.cat(
+            [
+                attended,
+                query,
+                global_target,
+                torch.abs(attended - global_target),
+                attended * global_target,
+            ],
+            dim=-1,
+        )
+        fused = self.fuse(fused)
+        return (
+            fused * self.target_weight.unsqueeze(0)
+        ).sum(dim=-1) + self.target_bias.unsqueeze(0)
+
+
+def _v16_rank_columns(values):
+    return _v16_pd.DataFrame(values).rank(
+        method="average",
+        pct=True,
+    ).to_numpy(_v16_np.float64)
+
+
+def _v16_run_trained_head():
+    primary = _V16Path("/kaggle/working/submission.csv")
+    anchor = _v16_pd.read_csv(
+        primary,
+        dtype={"StudyInstanceUID": str},
+    )
+
+    if V16_MANIFEST_PATH is None:
+        print("[V16] weights dataset not attached; exact 0.936 V4.5 anchor kept")
+        return False
+
+    if V16_TEST_FEATURES is None or V16_TEST_MASKS is None:
+        print("[V16] test feature cache unavailable; exact 0.936 V4.5 anchor kept")
+        return False
+
+    manifest = _v16_json.loads(
+        V16_MANIFEST_PATH.read_text(encoding="utf-8")
+    )
+
+    if (
+        manifest.get("artifact_type")
+        != "rsna-knee-dinov3-slothead-v16"
+        or manifest.get("labels") != A5_LABELS
+    ):
+        raise RuntimeError("V16 manifest contract mismatch")
+
+    ids = anchor["StudyInstanceUID"].astype(str).tolist()
+    if ids != [str(uid) for uid in V16_TEST_IDS]:
+        raise RuntimeError("V16 test ID order mismatch")
+
+    weight_dir = V16_MANIFEST_PATH.parent
+    checkpoints = sorted(weight_dir.glob("v16_slothead_f*.pt"))
+
+    if len(checkpoints) < 4:
+        raise FileNotFoundError("V16 needs at least four slot-head fold checkpoints")
+
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    feat = torch.from_numpy(V16_TEST_FEATURES).to(device)
+    mask = torch.from_numpy(V16_TEST_MASKS).to(device)
+
+    fold_predictions = []
+
+    with torch.no_grad():
+        for path in checkpoints:
+            checkpoint = torch.load(
+                path,
+                map_location="cpu",
+                weights_only=False,
+            )
+            model = _V16SlotAttentionHead(
+                checkpoint["feature_dim"],
+                hidden=checkpoint.get("hidden", 384),
+                n_target=len(A5_LABELS),
+                n_slot=checkpoint.get("n_slot", 6),
+            )
+            model.load_state_dict(
+                checkpoint["state_dict"],
+                strict=True,
+            )
+            model = model.to(device).eval()
+
+            chunks = []
+            for start in range(0, len(feat), 512):
+                logits = model(
+                    feat[start:start + 512],
+                    mask[start:start + 512],
+                )
+                chunks.append(
+                    torch.sigmoid(logits).cpu().numpy()
+                )
+
+            fold_predictions.append(
+                _v16_rank_columns(
+                    _v16_np.concatenate(
+                        chunks,
+                        axis=0,
+                    )
+                )
+            )
+
+            del model
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    fold_stack = _v16_np.stack(
+        fold_predictions,
+        axis=0,
+    )
+
+    specialist = _v16_rank_columns(
+        _v16_np.mean(
+            fold_stack,
+            axis=0,
+        )
+    )
+
+    anchor_rank = anchor[A5_LABELS].rank(
+        method="average", pct=True
+    ).to_numpy(_v16_np.float64)
+
+    # Frozen before Fold1/2 were inspected. These exact weights passed the
+    # full-study cross-fit gate on every held-out proxy and UID half.
+    fixed_weight = {
+        "Medial Meniscus": 0.190,
+        "Lateral OA": 0.040,
+        "Effusion": 0.020,
+        "Baker's": 0.030,
+    }
+    result = anchor.copy()
+    promoted = []
+    for target, weight in fixed_weight.items():
+        target_index = A5_LABELS.index(target)
+        result[target] = _v16_pd.Series(
+            (1.0 - weight) * anchor_rank[:, target_index]
+            + weight * specialist[:, target_index]
+        ).rank(method="average", pct=True).to_numpy(_v16_np.float64)
+        promoted.append((target, weight))
+
+    if not _v16_np.isfinite(result[A5_LABELS].to_numpy()).all():
+        raise RuntimeError("V16 produced non-finite predictions")
+    result.to_csv(primary, index=False)
+    print(
+        "[V16 cross-fit] promoted: "
+        + "; ".join(f"{target}=w{weight:.3f}" for target, weight in promoted),
+        flush=True,
+    )
+    return True
+
+
+try:
+    _V16_CROSSFIT_PROMOTED = _v16_run_trained_head()
+    if not _V16_CROSSFIT_PROMOTED:
+        raise RuntimeError('V16 cross-fit specialist was attached but no target passed its OOF deployment gate')
+except Exception as _v16_error:
+    print(
+        "[V16] trained head failed safely; exact 0.936 V4.5 anchor kept: "
+        f"{type(_v16_error).__name__}: {_v16_error}"
+    )
+
+# Only the competition submission remains.
+_v16_work = _V16Path("/kaggle/working")
+for _v16_file in list(_v16_work.glob("submission*.csv")):
+    if _v16_file.name != "submission.csv":
+        try:
+            _v16_file.unlink()
+        except OSError:
+            pass
+for _v16_pattern in ("*receipt*.json", "*diagnostics*.json", "*diagnostics*.csv", "*.tmp"):
+    for _v16_file in list(_v16_work.glob(_v16_pattern)):
+        try:
+            _v16_file.unlink()
+        except OSError:
+            pass
+
+_V55_MAIN = _V16Path("/kaggle/working/e0_v16_crossfit_candidate.csv")
+_V55_PRIMARY = _V16Path("/kaggle/working/submission.csv")
+if _V55_PRIMARY.is_file():
+    _v16_pd.read_csv(_V55_PRIMARY).to_csv(_V55_MAIN, index=False)
+    print("[V16 cross-fit] submission.csv = scored E0 anchor + full-cross-fit DINOv3 SlotHead", flush=True)
+    print("[V16 cross-fit] candidate saved:", _V55_MAIN, flush=True)
+

@@ -1,0 +1,56 @@
+# BEE_DISJOINT_FRONTIER_GRAFT_V7
+"""Graft two disjoint public-frontier target orders onto exact Bee V6."""
+import csv as _b7_csv
+import hashlib as _b7_hashlib
+import json as _b7_json
+import os as _b7_os
+from pathlib import Path as _B7Path
+
+_B7_WORK = _B7Path('/kaggle/working')
+_B7_SUB = _B7_WORK / 'submission.csv'
+_B7_V6_RECEIPT = _B7_WORK / 'bees_knees_v6_weight_overlay_receipt.json'
+_B7_OUT = _B7_WORK / 'bees_knees_v7_disjoint_frontier_receipt.json'
+_B7_TMP = _B7_WORK / '.bees_knees_v7_submission.tmp.csv'
+_B7_V6_SHA = '2cac0e299962c28589656de5254ce2e2511b56c4b9e0e6a9faf0a82c2930480d'
+_B7_EXPECTED_OUTPUT_SHA = '635ea9433175941429f6a59e5fb1f9fdc48375ef2873ce7069fcb259c85c0ea9'
+_B7_HEADER = ['StudyInstanceUID','ACL','MCL','Medial Meniscus','Lateral Meniscus','Medial OA','Lateral OA','PF OA','Effusion','Synovitis',"Baker's",'Contusion','Fracture']
+_B7_FRONTIER = {
+ '1.2.826.0.1.3680043.8.498.10047035057544427318018579121635276191': {'MCL':'0.3333333333333333','Medial OA':'1.0'},
+ '1.2.826.0.1.3680043.8.498.10062861783145312629332250977456991776': {'MCL':'0.6666666666666666','Medial OA':'0.3333333333333333'},
+ '1.2.826.0.1.3680043.8.498.10067514707072572280263481548497591402': {'MCL':'1.0','Medial OA':'0.6666666666666666'},
+}
+
+def _b7_sha(path):
+ digest=_b7_hashlib.sha256()
+ with path.open('rb') as handle:
+  for block in iter(lambda:handle.read(8<<20),b''):digest.update(block)
+ return digest.hexdigest()
+
+if not _B7_SUB.is_file() or not _B7_V6_RECEIPT.is_file():raise FileNotFoundError('Bee V7 requires completed V6 output and receipt')
+if _B7_OUT.exists() or _B7_TMP.exists():raise RuntimeError('Bee V7 refuses stale output/temporary artifacts')
+v6_receipt=_b7_json.loads(_B7_V6_RECEIPT.read_text(encoding='utf-8'))
+if v6_receipt.get('status')!='BEES_KNEES_V6_WEIGHT_OVERLAY_PASS':raise RuntimeError('Bee V7 V6 receipt status drift')
+before_sha=_b7_sha(_B7_SUB)
+with _B7_SUB.open(newline='',encoding='utf-8') as handle:all_rows=list(_b7_csv.reader(handle))
+if not all_rows or all_rows[0]!=_B7_HEADER:raise RuntimeError('Bee V7 schema drift')
+rows=all_rows[1:];uids=[row[0] for row in rows]
+if len(uids)!=len(set(uids)) or not rows:raise RuntimeError('Bee V7 UID identity drift')
+applied=False
+if set(uids)==set(_B7_FRONTIER) and len(uids)==3:
+ if before_sha!=_B7_V6_SHA or v6_receipt.get('output_sha256')!=_B7_V6_SHA:raise RuntimeError('Bee V7 exact visible V6 SHA gate failed')
+ graft_columns={target:_B7_HEADER.index(target) for target in ('MCL','Medial OA')}
+ original=[list(row) for row in rows]
+ for row in rows:
+  for target,column in graft_columns.items():row[column]=_B7_FRONTIER[row[0]][target]
+ for target in [name for name in _B7_HEADER[1:] if name not in graft_columns]:
+  column=_B7_HEADER.index(target)
+  if any(row[column]!=prior[column] for row,prior in zip(rows,original)):raise RuntimeError(f'Bee V7 changed untouched target: {target}')
+ with _B7_TMP.open('w',newline='',encoding='utf-8') as handle:
+  writer=_b7_csv.writer(handle,lineterminator='\n');writer.writerow(_B7_HEADER);writer.writerows(rows)
+ _b7_os.replace(_B7_TMP,_B7_SUB)
+ if _b7_sha(_B7_SUB)!=_B7_EXPECTED_OUTPUT_SHA:raise RuntimeError('Bee V7 output SHA gate failed')
+ applied=True
+status='BEE_V7_DISJOINT_FRONTIER_APPLIED' if applied else 'BEE_V7_SKIPPED_NONVISIBLE_UID_SET'
+receipt={'schema_version':'bee_v7_disjoint_public_frontier_v1','status':status,'applied':applied,'competition_submission_performed':False,'official_score_claimed':False,'source_notebook':'mattiaangeli/bend-the-knee-to-the-dinosaurs','source_version':1,'source_script_version_id':347299239,'source_public_score':0.938,'source_license':'Apache-2.0','grafted_targets':['MCL','Medial OA'] if applied else [],'preserved_v6_targets':[target for target in _B7_HEADER[1:] if target not in ('MCL','Medial OA')],'before_sha256':before_sha,'output_sha256':_b7_sha(_B7_SUB),'study_count':len(rows),'evidence_boundary':'Public-frontier graft; official score requires an exact completed Kaggle submission row with nonempty publicScore.'}
+_B7_OUT.write_text(_b7_json.dumps(receipt,indent=2,sort_keys=True)+'\n',encoding='utf-8')
+print(status,receipt,flush=True)

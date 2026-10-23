@@ -1,0 +1,23 @@
+{
+  "id": "easonyanyan/rsna-knee-0949-pf1-fuse050",
+  "title": "RSNA Knee 0949 PF1 Fuse050",
+  "code_file": "rsna-knee-0949-pf1-fuse050.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "machine_shape": "NvidiaTeslaT4",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "dataset_sources": [
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "easonyanyan/rsna-knee-pf1-weights"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ]
+}

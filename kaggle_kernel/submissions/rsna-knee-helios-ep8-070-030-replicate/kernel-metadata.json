@@ -1,0 +1,20 @@
+{
+  "id": "easonyanyan/rsna-knee-helios-ep8-070-030-replicate",
+  "title": "RSNA Knee Helios Ep8 070 030 Replicate",
+  "code_file": "rsna-knee-helios-ep8-070-030-replicate.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "false",
+  "dataset_sources": [
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "easonyanyan/rsna-knee-c6-warmstart-ep8-weights",
+    "nartaa/rsna-knee-publication-swa-weights-20261007"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

@@ -1,0 +1,21 @@
+## 🔬 Frontier delta audit — a useful null result
+
+The public notebook **[RSNA Knee — Take Care of Your Knee](https://www.kaggle.com/code/anhadmahajan06/rsna-knee-take-care-of-your-knee)** is a close relative of this four-arm pipeline, but it introduces three interesting changes:
+
+| Stage | Published variation | Why it is interesting |
+|---|---|---|
+| Cross-Series A5 | target-specific weights from `0.38` to `0.54` | lets ligament and contusion heads lean harder on cross-series context |
+| Raptor complement | legacy checkpoint contributes to all 12 targets | increases architectural diversity instead of limiting the complement to seven targets |
+| Final fusion | Gaussian-quantile (probit) target fusion | lets confident rank tails carry more influence than a linear rank average |
+
+We replayed that fixed source recipe *as written*—no Gold58 tuning—against the same locked 58-study diagnostic used throughout this notebook:
+
+| Diagnostic | Locked Bee parent | Phase-24 replay | Delta |
+|---|---:|---:|---:|
+| Macro ROC AUC | `0.942996` | `0.942879` | `−0.000117` |
+| Paired bootstrap 95% interval |  |  | `[−0.003585, +0.003330]` |
+| Fold deltas |  |  | `−0.000496, +0.001122, −0.004092, 0, 0` |
+
+The strongest target gains were MCL (`+0.005669`) and Lateral Meniscus (`+0.006211`), but PF OA (`−0.008366`) and Fracture (`−0.006944`) gave back more. Every pre-registered promotion check failed, so V4 keeps the exact better-supported `0.937` prediction graph unchanged.
+
+This is intentional: a reproducible negative comparison is more useful than silently stacking leaderboard-inspired weights. The appendix below verifies that the submission bytes are untouched and records the source/audit hashes for anyone reproducing the experiment.

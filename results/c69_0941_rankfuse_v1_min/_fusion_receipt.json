@@ -1,0 +1,23 @@
+{
+  "c6_sha256": "b5368ad570612e89b72a6e2e3842b88eeea178c82edc52816149b607fcd04eb6",
+  "c6_source_sha256": "c00a751491ff405808fd03869bc60b162c602c97fe67552d4a90959f9d49544a",
+  "experiment": "(C6+C9b) x 0.941 fork rank fusion (LOG #400)",
+  "fork_sha256": "ff848c73ba6f31e487d175161304d26df307e6e777189c01dfb508a76532ddfc",
+  "fused_sha256": "f1eb8ac507298ccf437a9a7250e8b2535a6fa37eecc51b5fb1050e3085dd2bd1",
+  "n_studies": 3,
+  "rank_corr_fork_vs_c6": {
+    "ACL": 0.49999999999999983,
+    "Baker's": 0.8660254037844387,
+    "Contusion": 0.8660254037844387,
+    "Effusion": 0.9999999999999999,
+    "Fracture": 0.8660254037844387,
+    "Lateral Meniscus": 0.9999999999999999,
+    "Lateral OA": 0.8660254037844385,
+    "MCL": -5.608641168618727e-17,
+    "Medial Meniscus": 0.9999999999999999,
+    "Medial OA": 0.5,
+    "PF OA": 0.9999999999999999,
+    "Synovitis": 0.5
+  },
+  "w_c6": 0.5
+}

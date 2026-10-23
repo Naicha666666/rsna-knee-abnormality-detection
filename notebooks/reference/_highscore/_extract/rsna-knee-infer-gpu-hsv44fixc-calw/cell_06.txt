@@ -1,0 +1,1690 @@
+# External Raptor checkpoints retain their original provenance and training recipe.
+import os, sys, glob, time, json, gc
+from concurrent.futures import ThreadPoolExecutor
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+import numpy as np
+import torch, torch.nn as nn, torch.nn.functional as F
+import timm
+# T4 (Turing) cuDNN v9 has fp16/fp32 conv engines but NOT bf16 for these shapes
+# ("GET was unable to find an engine..."); benchmark lets it pick a valid algo for
+# the fixed (1,24,3,res,res) input.
+torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.allow_tf32 = True
+
+# ---- fixed config (must match training exactly) -----------------------------
+IMG = 336
+CROP_MM = 140.0
+# 64 slices per study instead of 44, same proportions. Must match the corpus the weights
+# were trained on (knee_corpus_v4.py).
+SLOTS = [("Sagittal", 1, 18), ("Sagittal", 0, 14), ("Coronal", 1, 12),
+         ("Coronal", 0, 8), ("Axial", -1, 12)]
+MAXS = sum(s[2] for s in SLOTS)                     # 64
+K_EVAL = 62   # every window position the volume holds, not an evenly spaced subset
+NORM = "imagenet"
+LAB = ["ACL", "MCL", "Medial Meniscus", "Lateral Meniscus", "Medial OA", "Lateral OA",
+       "PF OA", "Effusion", "Synovitis", "Baker's", "Contusion", "Fracture"]
+_MEAN = torch.tensor([0.485, 0.456, 0.406]).view(3, 1, 1)
+_STD = torch.tensor([0.229, 0.224, 0.225]).view(3, 1, 1)
+
+# Three arms: (weights filename, fallback arch, fallback res). ck carries arch+res too.
+# Selected 2026-08-19 by greedy forward selection AND exhaustive subset search over a 7-arm
+# panel on the 45-study gold set (phase2/blend_panel.py); both agree on this exact set.
+# Singles: coatnet384 0.9025 | swinbase384 0.8825 | effv2l480 0.8716.
+# Blend {coatnet+swin+effv2l} = 0.9068 (2-arm {coatnet+swin} = 0.9059, coatnet alone 0.9025).
+# Dropped as redundant: cnn336 (0.8833, the former champion), cnbase384 (0.8754),
+# cnlarge384 (0.8752), maxvit384 (0.8438).
+#
+# SINGLE ARM: coatnet_rmlp_2_rw_384 retrained on the EXPANDED 4,349-study corpus.
+#
+# Why one arm and not the 3-arm blend: on the live leaderboard CoAtNet alone scored 0.914 while
+# every blend scored 0.914-0.915, so ensembling is worth ~+0.001 there -- the ~+0.010 it showed
+# on the old 45-study gold set was gold-set noise. One arm is also 1/3 the kernel runtime.
+#
+# Corpus expansion: the corpus previously held 3,200 of the 4,349 labelled studies and only 45
+# of the 58 gold studies. Rebuilt to 4,407 studies (+37.8% training data, 58-study gate).
+#
+# Measured on the 58-study gate (the incumbent re-scored on the SAME gate for a fair compare):
+#   incumbent CoAtNet (3,155-study corpus) 0.8923
+#   this model       (4,349-study corpus) 0.9054   (+0.0131, better in 92.7% of 2000 bootstraps)
+# Biggest gains land on the findings that were capping us: Lateral Meniscus +0.071,
+# Fracture +0.057, Lateral OA +0.048, Medial Meniscus +0.035, ACL +0.028.
+ARMS = [
+    {
+        "file": "raptor_ft_coatnet_v5_full_swa.pt",
+        "arch": "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k",
+        "res": 384,
+        "w": 1.0,
+    },
+]
+
+LEGACY_ARM = {
+    "file": "raptor_ft_coatnet_v4_full.pt",
+    "arch": "coatnet_rmlp_2_rw_384.sw_in12k_ft_in1k",
+    "res": 384,
+    "k_eval": 42,
+    "span_lo": 0.06,
+    "span_hi": 0.94,
+}
+
+PRIMARY_SPAN_LO = 0.02
+PRIMARY_SPAN_HI = 0.98
+
+
+# ============================================================================
+# Model -- verbatim from finetune_raptor.py
+# ============================================================================
+def build_backbone(arch, pretrained=False):
+    # maxvit/maxxvit/coatnet are conv-attention hybrids: NO CLS token, NO interpolatable
+    # pos-embed -> avg pool. The "vit" substring in "coatnet"/"maxvit" must NOT route them
+    # down the ViT path (mirrors finetune_raptor.py exactly).
+    hybrid = arch.startswith(("maxvit", "maxxvit", "coatnet", "coat_", "convnext"))
+    is_vit = (not hybrid) and any(k in arch for k in ("vit", "deit", "dinov2", "eva", "beit"))
+    kw = dict(pretrained=pretrained, num_classes=0, in_chans=3)
+    if is_vit:
+        kw.update(global_pool="token", dynamic_img_size=True)
+    else:
+        kw.update(global_pool="avg")
+    return timm.create_model(arch, **kw)
+
+
+class RaptorClassifier(nn.Module):
+    def __init__(self, backbone, F_dim=768, n=12, drop=0.2):
+        super().__init__()
+        self.backbone = backbone
+        self.norm = nn.LayerNorm(F_dim)
+        self.att = nn.Sequential(nn.Linear(F_dim, 256), nn.Tanh(), nn.Dropout(drop),
+                                 nn.Linear(256, n))
+        self.clsW = nn.Parameter(torch.zeros(n, F_dim))
+        self.clsb = nn.Parameter(torch.zeros(n))
+        nn.init.trunc_normal_(self.clsW, std=0.02)
+        self.n = n
+
+    def encode(self, x):
+        B, K = x.shape[:2]
+        f = self.backbone(x.flatten(0, 1))
+        return f.view(B, K, -1)
+
+    def head(self, feats):
+        h = self.norm(feats)
+        a = self.att(h)
+        a = torch.softmax(a, dim=1)
+        pooled = torch.einsum("bkn,bkf->bnf", a, h)
+        logits = (pooled * self.clsW).sum(-1) + self.clsb
+        return logits
+
+    def forward(self, x):
+        return self.head(self.encode(x))
+
+
+def load_model(pt_path, arch_default, res_default, device, ngpu=1):
+    ck = torch.load(pt_path, map_location="cpu", weights_only=False)
+    arch = ck.get("arch", arch_default)
+    ck_res = int(ck.get("res", res_default))
+    bb = build_backbone(arch, pretrained=False)
+    model = RaptorClassifier(bb, F_dim=bb.num_features)
+    model.load_state_dict(ck["model"], strict=True)
+    model.eval().to(device)
+    # NOTE: DataParallel removed on purpose. On the full hidden test it drove a system-RAM OOM
+    # (per-forward module replication over many studies); a single T4 handles K_EVAL=24 windows
+    # fine. Arms are also run SEQUENTIALLY (see main) so peak RAM == one model, not two.
+    del ck
+    gc.collect()
+    return model, ck_res
+
+
+# ============================================================================
+# Eval windowing -- verbatim from finetune_raptor.py StudyWindows (train=False)
+# ============================================================================
+def _eval_centers(mask, D, k):
+    valid = np.where(mask > 0)[0]
+    if len(valid) < 3:
+        valid = np.arange(min(3, D))
+    lo, hi = int(valid.min()), int(valid.max())
+    cs = [c for c in range(lo + 1, hi) if c - 1 >= lo and c + 1 <= hi]
+    if not cs:
+        cs = [max(1, min((lo + hi) // 2, D - 2))]
+    idx = np.linspace(0, len(cs) - 1, k).round().astype(int)
+    return [cs[i] for i in idx]
+
+
+def eval_windows(vol, mask, k, res, norm=NORM):
+    D = vol.shape[0]
+    cs = _eval_centers(mask, D, k)
+    wins = np.empty((len(cs), 3, res, res), np.float32)
+    for j, c in enumerate(cs):
+        c = max(1, min(c, D - 2))
+        tri = np.stack([vol[c - 1], vol[c], vol[c + 1]], 0).astype(np.float32) / 255.0
+        t = torch.from_numpy(tri)
+        if t.shape[-1] != res:
+            t = F.interpolate(t[None], size=(res, res), mode="bilinear",
+                              align_corners=False)[0]
+        wins[j] = t.numpy()
+    x = torch.from_numpy(wins)
+    if norm == "imagenet":
+        x = (x - _MEAN) / _STD
+    return x
+
+
+@torch.no_grad()
+def infer_probs(model, xwins, device):
+    x = xwins.unsqueeze(0).to(
+        device,
+        non_blocking=True,
+    )
+
+    use_cuda = (
+        str(device).startswith("cuda")
+    )
+
+    def _forward():
+        return torch.sigmoid(
+            model(x).float()
+        )[0].cpu().numpy()
+
+    if use_cuda:
+        try:
+            with torch.autocast(
+                "cuda",
+                dtype=torch.float16,
+            ):
+                return _forward()
+
+        except RuntimeError as error:
+            try:
+                with torch.cuda.device(device):
+                    torch.cuda.empty_cache()
+            except Exception:
+                pass
+
+            print(
+                "[DINOsaur V4.5] "
+                f"{device} fp16 retry in fp32: "
+                f"{type(error).__name__}",
+                flush=True,
+            )
+
+            return _forward()
+
+    return _forward()
+
+
+def rankpct(x):                                   # per-column percentile rank in [0,1]
+    order = x.argsort(0).argsort(0).astype(np.float64)
+    return order / max(1, (x.shape[0] - 1))
+
+
+# ============================================================================
+# Preprocessing -- verbatim from kprep2/dino_preprocess.py, retargeted to TEST
+# ============================================================================
+def _make_reader():
+    import pydicom, cv2
+    from pydicom.pixel_data_handlers.util import apply_modality_lut
+
+    def order_and_meta(sdir):
+        fs = glob.glob(sdir + "/*.dcm"); recs = []; ps_list = []
+        for f in fs:
+            try:
+                h = pydicom.dcmread(f, stop_before_pixels=True)
+                iop = getattr(h, 'ImageOrientationPatient', None)
+                ipp = getattr(h, 'ImagePositionPatient', None)
+                if iop is not None and ipp is not None and len(iop) == 6:
+                    r = np.array(iop[:3], float); c = np.array(iop[3:], float)
+                    n = np.cross(r, c); pos = float(np.dot(np.array(ipp, float), n))
+                else:
+                    pos = float(getattr(h, 'InstanceNumber', 0) or 0)
+                ps = getattr(h, 'PixelSpacing', None); ps = float(ps[0]) if ps is not None else 0.5
+                ps_list.append(ps); recs.append((pos, f, ps))
+            except Exception:
+                recs.append((0.0, f, 0.5))
+        recs.sort(key=lambda x: x[0])
+        med_ps = float(np.median(ps_list)) if ps_list else 0.5
+        return [(f, ps) for _, f, ps in recs], med_ps
+
+    def read_px(f):
+        d = pydicom.dcmread(f)
+        a = apply_modality_lut(d.pixel_array, d).astype(np.float32)
+        if str(getattr(d, 'PhotometricInterpretation', '')) == 'MONOCHROME1':
+            a = a.max() - a
+        return a
+
+    def mm_crop_resize(a, ps):
+        h, w = a.shape; cpx = int(round(CROP_MM / max(ps, 1e-3)))
+        cpx = min(cpx, min(h, w)); y0 = (h - cpx) // 2; x0 = (w - cpx) // 2
+        a = a[y0:y0 + cpx, x0:x0 + cpx]
+        return cv2.resize(a, (IMG, IMG), interpolation=cv2.INTER_AREA)
+
+    return order_and_meta, read_px, mm_crop_resize
+
+
+def _pick_series_for_slot(rows, plane, fluid, used):
+    cands = [r for r in rows if r['Anatomical_Plane'] == plane and r['SeriesInstanceUID'] not in used]
+    if fluid in (0, 1):
+        pref = [r for r in cands if int(r.get('Fluid_Sensitive', 0) or 0) == fluid]
+        if pref:
+            return pref[0]
+    return cands[0] if cands else None
+
+
+def _fill_variant_volume(
+    target_volume,
+    offset,
+    picks,
+    pixel_cache,
+    files,
+    med_ps,
+    mm_crop_resize,
+):
+    arrays = []
+    spacings = []
+
+    for position in picks:
+        position = min(
+            int(position),
+            len(files) - 1,
+        )
+        file_path, spacing = files[
+            position
+        ]
+        arrays.append(
+            pixel_cache.get(
+                position
+            )
+        )
+        spacings.append(
+            spacing
+            if spacing > 0
+            else med_ps
+        )
+
+    valid = [
+        array
+        for array in arrays
+        if array is not None
+    ]
+
+    if valid:
+        all_pixels = np.concatenate(
+            [
+                array.ravel()
+                for array in valid
+            ]
+        )
+        low, high = np.percentile(
+            all_pixels,
+            [2.0, 98.0],
+        )
+    else:
+        low, high = 0.0, 1.0
+
+    for local_index, (
+        array,
+        spacing,
+    ) in enumerate(
+        zip(
+            arrays,
+            spacings,
+        )
+    ):
+        output_index = (
+            offset
+            + local_index
+        )
+
+        if (
+            output_index
+            >= MAXS
+        ):
+            break
+
+        if array is None:
+            continue
+
+        normalized = np.clip(
+            (
+                array - low
+            )
+            / (
+                high - low
+                + 1e-6
+            ),
+            0,
+            1,
+        )
+
+        normalized = mm_crop_resize(
+            normalized,
+            spacing,
+        )
+
+        target_volume[
+            output_index
+        ] = (
+            normalized
+            * 255
+        ).astype(
+            np.uint8
+        )
+
+
+def build_study_pair(
+    sid,
+    ser_records,
+    tsdir,
+    reader,
+):
+    """
+    Produce exact MaxSpan and legacy-span volumes while reading every required
+    DICOM only once. Both checkpoints keep their own percentile normalization.
+    """
+    (
+        order_and_meta,
+        read_px,
+        mm_crop_resize,
+    ) = reader
+
+    rows = ser_records.get(
+        sid,
+        [],
+    )
+
+    primary_volume = np.zeros(
+        (
+            MAXS,
+            IMG,
+            IMG,
+        ),
+        np.uint8,
+    )
+    legacy_volume = np.zeros_like(
+        primary_volume
+    )
+
+    used = set()
+    offset = 0
+
+    for plane, fluid, count in SLOTS:
+        record = _pick_series_for_slot(
+            rows,
+            plane,
+            fluid,
+            used,
+        )
+
+        if record is None:
+            offset += count
+            continue
+
+        used.add(
+            record[
+                "SeriesInstanceUID"
+            ]
+        )
+
+        files, med_ps = order_and_meta(
+            f"{tsdir}/{sid}/"
+            f"{record['SeriesInstanceUID']}"
+        )
+
+        if not files:
+            offset += count
+            continue
+
+        number = len(files)
+
+        primary_low = int(
+            number
+            * PRIMARY_SPAN_LO
+        )
+        primary_high = int(
+            number
+            * PRIMARY_SPAN_HI
+        ) - 1
+        primary_high = max(
+            primary_high,
+            primary_low,
+        )
+
+        legacy_low = int(
+            number
+            * float(
+                LEGACY_ARM[
+                    "span_lo"
+                ]
+            )
+        )
+        legacy_high = int(
+            number
+            * float(
+                LEGACY_ARM[
+                    "span_hi"
+                ]
+            )
+        ) - 1
+        legacy_high = max(
+            legacy_high,
+            legacy_low,
+        )
+
+        if number > 1:
+            primary_picks = np.linspace(
+                primary_low,
+                primary_high,
+                count,
+            ).round().astype(int)
+
+            legacy_picks = np.linspace(
+                legacy_low,
+                legacy_high,
+                count,
+            ).round().astype(int)
+        else:
+            primary_picks = np.zeros(
+                count,
+                dtype=int,
+            )
+            legacy_picks = np.zeros(
+                count,
+                dtype=int,
+            )
+
+        required_positions = sorted(
+            set(
+                primary_picks.tolist()
+                + legacy_picks.tolist()
+            )
+        )
+
+        pixel_cache = {}
+
+        for position in required_positions:
+            position = min(
+                int(position),
+                number - 1,
+            )
+
+            file_path, _ = files[
+                position
+            ]
+
+            try:
+                pixel_cache[
+                    position
+                ] = read_px(
+                    file_path
+                )
+            except Exception:
+                pixel_cache[
+                    position
+                ] = None
+
+        _fill_variant_volume(
+            primary_volume,
+            offset,
+            primary_picks,
+            pixel_cache,
+            files,
+            med_ps,
+            mm_crop_resize,
+        )
+
+        _fill_variant_volume(
+            legacy_volume,
+            offset,
+            legacy_picks,
+            pixel_cache,
+            files,
+            med_ps,
+            mm_crop_resize,
+        )
+
+        offset += count
+
+        if offset >= MAXS:
+            break
+
+    primary_mask = (
+        primary_volume.reshape(
+            MAXS,
+            -1,
+        ).sum(1)
+        > 0
+    ).astype(
+        np.uint8
+    )
+
+    legacy_mask = (
+        legacy_volume.reshape(
+            MAXS,
+            -1,
+        ).sum(1)
+        > 0
+    ).astype(
+        np.uint8
+    )
+
+    return (
+        primary_volume,
+        primary_mask,
+        legacy_volume,
+        legacy_mask,
+    )
+
+
+# ============================================================================
+# Test-root discovery + weights + main
+# ============================================================================
+def find_test_root():
+    cands = ["/kaggle/input/competitions/rsna-knee-abnormality-detection",
+             "/kaggle/input/rsna-knee-abnormality-detection"]
+    for b in cands:
+        if os.path.exists(b + "/test.csv"):
+            return b
+    for d, _, f in os.walk("/kaggle/input"):
+        if "test.csv" in f and (os.path.isdir(d + "/test_series") or os.path.isdir(d + "/test_images")):
+            return d
+    for d, _, f in os.walk("/kaggle/input"):
+        if "test.csv" in f:
+            return d
+    raise RuntimeError("no test root under /kaggle/input")
+
+
+def find_weight_file(
+    fname,
+    required=True,
+):
+    direct = [
+        f"/kaggle/input/raptor-knee-arms/{fname}",
+        f"/kaggle/input/raptor-knee-arms/1/{fname}",
+        f"/kaggle/input/raptor-cnn336/{fname}",
+    ]
+
+    for path in direct:
+        if os.path.exists(path):
+            return path
+
+    for directory in sorted(
+        glob.glob(
+            "/kaggle/input/*/"
+        )
+    ):
+        if (
+            "competition"
+            in directory.lower()
+        ):
+            continue
+
+        hits = glob.glob(
+            os.path.join(
+                directory,
+                "**",
+                fname,
+            ),
+            recursive=True,
+        )
+
+        if hits:
+            return hits[0]
+
+    if required:
+        raise RuntimeError(
+            f"{fname} not found "
+            "under /kaggle/input"
+        )
+
+    return None
+
+
+
+def _d45_find_swin_checkpoint():
+    roots = [
+        "/kaggle/input/raptor-knee-arms",
+        "/kaggle/input/raptor-knee-arms/1",
+        "/kaggle/input/raptor-cnn336",
+    ]
+
+    candidates = []
+
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+
+        for pattern in (
+            "**/*swin*.pt",
+            "**/*swin*.pth",
+            "**/*swin*.bin",
+        ):
+            candidates.extend(
+                glob.glob(
+                    os.path.join(
+                        root,
+                        pattern,
+                    ),
+                    recursive=True,
+                )
+            )
+
+    seen = set()
+
+    for path in sorted(candidates):
+        if path in seen:
+            continue
+
+        seen.add(path)
+
+        try:
+            checkpoint = torch.load(
+                path,
+                map_location="cpu",
+                weights_only=False,
+            )
+
+            architecture = str(
+                checkpoint.get(
+                    "arch",
+                    "",
+                )
+            )
+
+            resolution = int(
+                checkpoint.get(
+                    "res",
+                    384,
+                )
+            )
+
+            has_model = (
+                isinstance(
+                    checkpoint,
+                    dict,
+                )
+                and "model" in checkpoint
+            )
+
+            del checkpoint
+
+            if (
+                has_model
+                and "swin" in architecture.lower()
+            ):
+                return {
+                    "path": path,
+                    "arch": architecture,
+                    "res": resolution,
+                }
+
+        except Exception:
+            continue
+
+    return None
+
+
+def _d45_run_sparse_swin(
+    arm,
+    test_ids,
+    series_map,
+    series_dir,
+    reader,
+):
+    if arm is None:
+        return None, 0.0
+
+    if (
+        not torch.cuda.is_available()
+        or torch.cuda.device_count() < 1
+    ):
+        return None, 0.0
+
+    device = torch.device(
+        "cuda:1"
+        if torch.cuda.device_count() >= 2
+        else "cuda:0"
+    )
+
+    model = None
+
+    try:
+        model, resolution = load_model(
+            arm["path"],
+            arm["arch"],
+            arm["res"],
+            device,
+        )
+
+        prediction = np.full(
+            (
+                len(test_ids),
+                len(LAB),
+            ),
+            0.5,
+            dtype=np.float32,
+        )
+
+        success = np.zeros(
+            len(test_ids),
+            dtype=np.bool_,
+        )
+
+        for study_index, study_id in enumerate(
+            test_ids
+        ):
+            try:
+                (
+                    _primary_volume,
+                    _primary_mask,
+                    legacy_volume,
+                    legacy_mask,
+                ) = build_study_pair(
+                    study_id,
+                    series_map,
+                    series_dir,
+                    reader,
+                )
+
+                windows = eval_windows(
+                    legacy_volume,
+                    legacy_mask,
+                    k=24,
+                    res=resolution,
+                    norm=NORM,
+                )
+
+                prediction[
+                    study_index
+                ] = infer_probs(
+                    model,
+                    windows,
+                    device,
+                )
+
+                success[
+                    study_index
+                ] = True
+
+                del (
+                    _primary_volume,
+                    _primary_mask,
+                    legacy_volume,
+                    legacy_mask,
+                    windows,
+                )
+
+            except Exception as error:
+                print(
+                    "[DINOsaur V4.5] "
+                    f"Swin study {study_index} fallback: "
+                    f"{type(error).__name__}: {error}",
+                    flush=True,
+                )
+
+            if (
+                (study_index + 1) % 150 == 0
+                or study_index + 1 == len(test_ids)
+            ):
+                print(
+                    "[DINOsaur V4.5] "
+                    f"Swin {study_index+1}/{len(test_ids)}",
+                    flush=True,
+                )
+
+        fraction = float(
+            success.mean()
+        )
+
+        if fraction < 0.97:
+            return None, fraction
+
+        return prediction, fraction
+
+    except Exception as error:
+        print(
+            "[DINOsaur V4.5] "
+            "optional Swin disabled safely: "
+            f"{type(error).__name__}: {error}",
+            flush=True,
+        )
+
+        return None, 0.0
+
+    finally:
+        if model is not None:
+            del model
+
+        gc.collect()
+
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
+
+def main():
+    import pandas as pd
+    t0 = time.time()
+    dev = "cuda" if torch.cuda.is_available() else "cpu"
+    ngpu = torch.cuda.device_count()
+    print(f"device {dev} | gpus {ngpu} | torch {torch.__version__}", flush=True)
+
+    ROOT = find_test_root()
+    tsdir = ROOT + "/test_series"
+    if not os.path.isdir(tsdir):
+        tsdir = ROOT + "/test_images"
+    print("test root:", ROOT, "| series dir:", tsdir, flush=True)
+
+    test = pd.read_csv(ROOT + "/test.csv"); test["StudyInstanceUID"] = test["StudyInstanceUID"].astype(str)
+    test_ids = test["StudyInstanceUID"].tolist()
+    tser = pd.read_csv(ROOT + "/test_series.csv")
+    tser["StudyInstanceUID"] = tser["StudyInstanceUID"].astype(str)
+    tser["SeriesInstanceUID"] = tser["SeriesInstanceUID"].astype(str)
+    SER = {k: v.to_dict("records") for k, v in tser.groupby("StudyInstanceUID")}
+    print(f"test studies {len(test_ids)} | test series {len(tser)}", flush=True)
+
+    sub_cols = ["StudyInstanceUID"] + LAB
+    ssub = os.path.join(ROOT, "sample_submission.csv")
+    if os.path.exists(ssub):
+        sub_cols = list(pd.read_csv(ssub, nrows=1).columns)
+
+    reader = _make_reader()
+
+    number_studies = len(
+        test_ids
+    )
+
+    primary_predictions = np.full(
+        (
+            number_studies,
+            len(LAB),
+        ),
+        0.5,
+        np.float32,
+    )
+
+    legacy_predictions = np.full_like(
+        primary_predictions,
+        0.5,
+    )
+
+    legacy_success = np.zeros(
+        number_studies,
+        dtype=np.bool_,
+    )
+
+    if (
+        torch.cuda.is_available()
+        and torch.cuda.device_count() >= 1
+    ):
+        primary_device = torch.device(
+            "cuda:0"
+        )
+    else:
+        primary_device = torch.device(
+            "cpu"
+        )
+
+    legacy_path = find_weight_file(
+        LEGACY_ARM[
+            "file"
+        ],
+        required=False,
+    )
+
+    legacy_enabled = (
+        legacy_path is not None
+        and torch.cuda.is_available()
+        and torch.cuda.device_count() >= 2
+    )
+
+    primary_path = find_weight_file(
+        ARMS[0][
+            "file"
+        ],
+        required=True,
+    )
+
+    primary_model, primary_res = load_model(
+        primary_path,
+        ARMS[0][
+            "arch"
+        ],
+        ARMS[0][
+            "res"
+        ],
+        primary_device,
+    )
+
+    print(
+        "[DINOsaur V4.5] primary "
+        f"{ARMS[0]['file']} "
+        f"on {primary_device}",
+        flush=True,
+    )
+
+    legacy_model = None
+    legacy_device = None
+    legacy_res = None
+
+    if legacy_enabled:
+        legacy_device = torch.device(
+            "cuda:1"
+        )
+
+        try:
+            legacy_model, legacy_res = load_model(
+                legacy_path,
+                LEGACY_ARM[
+                    "arch"
+                ],
+                LEGACY_ARM[
+                    "res"
+                ],
+                legacy_device,
+            )
+
+            print(
+                "[DINOsaur V4.5] complement "
+                f"{LEGACY_ARM['file']} "
+                f"on {legacy_device}",
+                flush=True,
+            )
+
+        except Exception as error:
+            legacy_enabled = False
+            legacy_model = None
+
+            print(
+                "[DINOsaur V4.5] "
+                "legacy checkpoint disabled "
+                f"safely: "
+                f"{type(error).__name__}: "
+                f"{error}",
+                flush=True,
+            )
+
+    else:
+        print(
+            "[DINOsaur V4.5] "
+            "legacy complement unavailable "
+            "or second GPU absent; "
+            "exact 0.935 Raptor retained",
+            flush=True,
+        )
+
+    executor = (
+        ThreadPoolExecutor(
+            max_workers=2
+        )
+        if legacy_enabled
+        else None
+    )
+
+    for study_index, study_id in enumerate(
+        test_ids
+    ):
+        try:
+            (
+                primary_volume,
+                primary_mask,
+                legacy_volume,
+                legacy_mask,
+            ) = build_study_pair(
+                study_id,
+                SER,
+                tsdir,
+                reader,
+            )
+
+            primary_windows = eval_windows(
+                primary_volume,
+                primary_mask,
+                k=K_EVAL,
+                res=primary_res,
+                norm=NORM,
+            )
+
+            if legacy_enabled:
+                legacy_windows = eval_windows(
+                    legacy_volume,
+                    legacy_mask,
+                    k=int(
+                        LEGACY_ARM[
+                            "k_eval"
+                        ]
+                    ),
+                    res=legacy_res,
+                    norm=NORM,
+                )
+
+                primary_future = executor.submit(
+                    infer_probs,
+                    primary_model,
+                    primary_windows,
+                    primary_device,
+                )
+
+                legacy_future = executor.submit(
+                    infer_probs,
+                    legacy_model,
+                    legacy_windows,
+                    legacy_device,
+                )
+
+                primary_prediction = (
+                    primary_future.result()
+                )
+
+                try:
+                    legacy_prediction = (
+                        legacy_future.result()
+                    )
+                    legacy_success[
+                        study_index
+                    ] = True
+                except Exception as legacy_error:
+                    legacy_prediction = (
+                        primary_prediction.copy()
+                    )
+
+                    print(
+                        "[DINOsaur V4.5] "
+                        f"legacy study "
+                        f"{study_index} fallback: "
+                        f"{type(legacy_error).__name__}: "
+                        f"{legacy_error}",
+                        flush=True,
+                    )
+
+                del legacy_windows
+
+            else:
+                primary_prediction = infer_probs(
+                    primary_model,
+                    primary_windows,
+                    primary_device,
+                )
+                legacy_prediction = (
+                    primary_prediction.copy()
+                )
+
+            primary_predictions[
+                study_index
+            ] = primary_prediction
+
+            legacy_predictions[
+                study_index
+            ] = legacy_prediction
+
+            del (
+                primary_volume,
+                primary_mask,
+                legacy_volume,
+                legacy_mask,
+                primary_windows,
+                primary_prediction,
+                legacy_prediction,
+            )
+
+        except Exception as error:
+            print(
+                "[DINOsaur V4.5] "
+                f"study {study_index} "
+                f"{study_id[:16]} FALLBACK "
+                f"({type(error).__name__}: "
+                f"{error})",
+                flush=True,
+            )
+
+        if (
+            (
+                study_index + 1
+            )
+            % 100
+            == 0
+            or study_index + 1
+            == number_studies
+        ):
+            print(
+                "[DINOsaur V4.5] "
+                f"{study_index+1}/"
+                f"{number_studies} | "
+                f"{time.time()-t0:.0f}s",
+                flush=True,
+            )
+
+    if executor is not None:
+        executor.shutdown(
+            wait=True
+        )
+
+    del primary_model
+
+    if legacy_model is not None:
+        del legacy_model
+
+    gc.collect()
+
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    primary_rank = rankpct(
+        np.clip(
+            primary_predictions,
+            0,
+            1,
+        )
+    )
+
+    raptor_rank = (
+        primary_rank.copy()
+    )
+
+    legacy_fraction = float(
+        legacy_success.mean()
+    ) if legacy_enabled else 0.0
+
+    if (
+        legacy_enabled
+        and legacy_fraction >= 0.98
+    ):
+        legacy_rank = rankpct(
+            np.clip(
+                legacy_predictions,
+                0,
+                1,
+            )
+        )
+
+        # The expanded MaxSpan checkpoint's documented largest gains are ACL,
+        # both menisci, Lateral OA and Fracture. Keep it almost pure there.
+        # Use the previous 0.934 checkpoint only for the remaining findings,
+        # where it may restore complementary ordering.
+        complement_weight = {
+            "ACL": 0.025,
+            "MCL": 0.16,
+            "Medial Meniscus": 0.025,
+            "Lateral Meniscus": 0.020,
+            "Medial OA": 0.10,
+            "Lateral OA": 0.025,
+            "PF OA": 0.12,
+            "Effusion": 0.10,
+            "Synovitis": 0.16,
+            "Baker's": 0.12,
+            "Contusion": 0.12,
+            "Fracture": 0.020,
+        }
+
+        complement_log = []
+
+        for target_index, target in enumerate(
+            LAB
+        ):
+            weight = float(
+                complement_weight.get(
+                    target,
+                    0.0,
+                )
+            )
+
+            if weight <= 0:
+                continue
+
+            correlation = float(
+                np.corrcoef(
+                    primary_rank[
+                        :,
+                        target_index,
+                    ],
+                    legacy_rank[
+                        :,
+                        target_index,
+                    ],
+                )[0, 1]
+            )
+
+            if not np.isfinite(
+                correlation
+            ):
+                weight = 0.0
+            elif correlation > 0.992:
+                weight *= 0.50
+            elif correlation < 0.65:
+                weight *= 0.40
+
+            if weight <= 0:
+                continue
+
+            raptor_rank[
+                :,
+                target_index,
+            ] = (
+                (
+                    1.0
+                    - weight
+                )
+                * primary_rank[
+                    :,
+                    target_index,
+                ]
+                + weight
+                * legacy_rank[
+                    :,
+                    target_index,
+                ]
+            )
+
+            complement_log.append(
+                (
+                    target,
+                    weight,
+                    correlation,
+                )
+            )
+
+        raptor_rank = rankpct(
+            raptor_rank
+        )
+
+        print(
+            "[DINOsaur V4.5] "
+            "legacy complement: "
+            + "; ".join(
+                f"{target}=w{weight:.3f},"
+                f"corr={correlation:.3f}"
+                for (
+                    target,
+                    weight,
+                    correlation,
+                )
+                in complement_log
+            ),
+            flush=True,
+        )
+
+    else:
+        print(
+            "[DINOsaur V4.5] "
+            f"legacy success={legacy_fraction:.3f}; "
+            "exact primary Raptor used",
+            flush=True,
+        )
+
+    ranks = raptor_rank
+
+    # Optional third architecture. It is intentionally only a small residual.
+    # If the checkpoint is absent, incompatible, too slow, or incomplete,
+    # this block becomes a strict no-op and preserves the 0.936 anchor.
+    swin_arm = _d45_find_swin_checkpoint()
+
+    if swin_arm is not None:
+        print(
+            "[DINOsaur V4.5] optional Swin found: "
+            f"{os.path.basename(swin_arm['path'])} | "
+            f"{swin_arm['arch']} | res={swin_arm['res']}",
+            flush=True,
+        )
+
+        swin_prediction, swin_fraction = _d45_run_sparse_swin(
+            swin_arm,
+            test_ids,
+            SER,
+            tsdir,
+            reader,
+        )
+
+        if (
+            swin_prediction is not None
+            and swin_fraction >= 0.97
+        ):
+            swin_rank = rankpct(
+                np.clip(
+                    swin_prediction,
+                    0,
+                    1,
+                )
+            )
+
+            diversity_weight = {
+                "ACL": 0.035,
+                "MCL": 0.075,
+                "Medial Meniscus": 0.045,
+                "Lateral Meniscus": 0.040,
+                "Medial OA": 0.065,
+                "Lateral OA": 0.045,
+                "PF OA": 0.070,
+                "Effusion": 0.060,
+                "Synovitis": 0.080,
+                "Baker's": 0.070,
+                "Contusion": 0.070,
+                "Fracture": 0.040,
+            }
+
+            swin_log = []
+
+            for target_index, target in enumerate(
+                LAB
+            ):
+                weight = float(
+                    diversity_weight[
+                        target
+                    ]
+                )
+
+                correlation = float(
+                    np.corrcoef(
+                        ranks[
+                            :,
+                            target_index,
+                        ],
+                        swin_rank[
+                            :,
+                            target_index,
+                        ],
+                    )[0, 1]
+                )
+
+                if not np.isfinite(
+                    correlation
+                ):
+                    weight = 0.0
+                elif correlation > 0.985:
+                    weight *= 0.45
+                elif correlation < 0.50:
+                    weight *= 0.35
+
+                if weight <= 0:
+                    continue
+
+                ranks[
+                    :,
+                    target_index,
+                ] = (
+                    (
+                        1.0
+                        - weight
+                    )
+                    * ranks[
+                        :,
+                        target_index,
+                    ]
+                    + weight
+                    * swin_rank[
+                        :,
+                        target_index,
+                    ]
+                )
+
+                swin_log.append(
+                    (
+                        target,
+                        weight,
+                        correlation,
+                    )
+                )
+
+            ranks = rankpct(
+                ranks
+            )
+
+            print(
+                "[DINOsaur V4.5] Swin residual: "
+                + "; ".join(
+                    f"{target}=w{weight:.3f},corr={correlation:.3f}"
+                    for (
+                        target,
+                        weight,
+                        correlation,
+                    )
+                    in swin_log
+                ),
+                flush=True,
+            )
+
+    if not np.isfinite(ranks).all():
+        ranks[~np.isfinite(ranks)] = 0.5
+
+    sub = pd.DataFrame(ranks.astype(np.float32), columns=LAB)
+    sub.insert(0, "StudyInstanceUID", test_ids)
+    sub = sub[sub_cols]
+    assert list(sub.columns) == sub_cols, "column order drift"
+    assert sub["StudyInstanceUID"].tolist() == test_ids, "row identity drift"
+    assert np.isfinite(sub[LAB].values).all()
+    out = "/kaggle/working/submission_coatnet.csv"
+    sub.to_csv(out, index=False)
+    print("wrote", out, "|", len(sub), "rows x", len(sub.columns), "cols", flush=True)
+    print(sub.head().to_string(index=False), flush=True)
+    print(f"DONE {time.time()-t0:.0f}s", flush=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as _coat_exc:
+        import traceback as _coat_traceback
+        print(f"CoAtNet branch failed; retaining transformer submission: {type(_coat_exc).__name__}: {_coat_exc}", flush=True)
+        _coat_traceback.print_exc()
+
+
+
+# Hidden-rerun fail-safe final fusion.
+from pathlib import Path as _D42Path
+import shutil as _d42_shutil
+
+_d42_primary = _D42Path('/kaggle/working/submission.csv')
+_d42_backup = _D42Path('/kaggle/working/.d45_transformer_backup.csv')
+
+if _d42_primary.is_file():
+    _d42_shutil.copy2(_d42_primary, _d42_backup)
+
+try:
+    # Blend two independently validated rank predictors. The default remains the transformer
+    # submission if the CoAtNet branch did not complete, so a recoverable branch failure
+    # cannot erase a valid competition artifact.
+    from pathlib import Path as _BlendPath
+    import numpy as _blend_np
+    import pandas as _blend_pd
+    
+    _blend_work = _BlendPath('/kaggle/working')
+    _blend_transformer_path = _blend_work / 'submission.csv'
+    _blend_coatnet_path = _blend_work / 'submission_coatnet.csv'
+    if _blend_coatnet_path.is_file():
+        _blend_transformer = _blend_pd.read_csv(_blend_transformer_path, dtype={'StudyInstanceUID': str})
+        _blend_coatnet = _blend_pd.read_csv(_blend_coatnet_path, dtype={'StudyInstanceUID': str})
+        _blend_labels = [c for c in _blend_transformer.columns if c != 'StudyInstanceUID']
+        if _blend_coatnet.columns.tolist() != _blend_transformer.columns.tolist():
+            raise RuntimeError('CoAtNet/transformer submission schema mismatch')
+        if _blend_coatnet['StudyInstanceUID'].tolist() != _blend_transformer['StudyInstanceUID'].tolist():
+            raise RuntimeError('CoAtNet/transformer study order mismatch')
+        _blend_tr = _blend_transformer[
+            _blend_labels
+        ].rank(
+            method='average',
+            pct=True,
+        )
+    
+        _blend_cr = _blend_coatnet[
+            _blend_labels
+        ].rank(
+            method='average',
+            pct=True,
+        )
+    
+        _blend_output = (
+            _blend_transformer.copy()
+        )
+    
+        _coatnet_weight = {
+            label: 0.50
+            for label in _blend_labels
+        }
+    
+        if globals().get(
+            'V18_CALIBRATOR_APPLIED',
+            False,
+        ):
+            # The MaxSpan checkpoint's documented 58-study gains are concentrated
+            # on these targets. Move far enough to affect ranking, but keep the
+            # calibrated transformer as a substantial independent vote.
+            _coatnet_weight.update(
+                {
+                    'ACL': 0.54,
+                    'Medial Meniscus': 0.565,
+                    'Lateral Meniscus': 0.625,
+                    'Lateral OA': 0.56,
+                    'Fracture': 0.625,
+                }
+            )
+    
+        _base_0935 = {
+            label: 0.50
+            for label in _blend_labels
+        }
+        _base_0935.update(
+            {
+                'Medial Meniscus': 0.52,
+                'Lateral Meniscus': 0.54,
+                'Fracture': 0.54,
+            }
+        )
+    
+        # Correlation only controls risk. It never creates a new target weight.
+        for _label in _blend_labels:
+            _correlation = float(
+                _blend_np.corrcoef(
+                    _blend_tr[
+                        _label
+                    ].to_numpy(
+                        _blend_np.float64
+                    ),
+                    _blend_cr[
+                        _label
+                    ].to_numpy(
+                        _blend_np.float64
+                    ),
+                )[0, 1]
+            )
+    
+            if not _blend_np.isfinite(
+                _correlation
+            ):
+                _coatnet_weight[
+                    _label
+                ] = _base_0935[
+                    _label
+                ]
+    
+            elif _correlation > 0.992:
+                _coatnet_weight[
+                    _label
+                ] = (
+                    0.65
+                    * _coatnet_weight[
+                        _label
+                    ]
+                    + 0.35
+                    * _base_0935[
+                        _label
+                    ]
+                )
+    
+            elif _correlation < 0.60:
+                _coatnet_weight[
+                    _label
+                ] = (
+                    0.50
+                    * _coatnet_weight[
+                        _label
+                    ]
+                    + 0.50
+                    * _base_0935[
+                        _label
+                    ]
+                )
+    
+        for _label in _blend_labels:
+            _cw = float(
+                _coatnet_weight[
+                    _label
+                ]
+            )
+    
+            _blend_output[
+                _label
+            ] = (
+                (
+                    1.0
+                    - _cw
+                )
+                * _blend_tr[
+                    _label
+                ]
+                + _cw
+                * _blend_cr[
+                    _label
+                ]
+            )
+    
+        _blend_output[
+            _blend_labels
+        ] = _blend_output[
+            _blend_labels
+        ].rank(
+            method='average',
+            pct=True,
+        )
+    
+        print(
+            '[DINOsaur V4.5] CoAtNet target weights: '
+            + ', '.join(
+                f'{label}='
+                f'{_coatnet_weight[label]:.2f}'
+                for label in _blend_labels
+                if (
+                    _coatnet_weight[label]
+                    != 0.50
+                )
+            ),
+            flush=True,
+        )
+    
+        _blend_values = _blend_output[
+            _blend_labels
+        ].to_numpy(
+            _blend_np.float64
+        )
+        if not _blend_np.isfinite(_blend_values).all() or _blend_values.min() < 0 or _blend_values.max() > 1:
+            raise RuntimeError('invalid blended prediction values')
+        _blend_output.to_csv(_blend_transformer_path, index=False)
+        print(f'final submission.csv = DINOsaur V4.5 diversity-residual fusion; {_blend_output.shape}', flush=True)
+    else:
+        print('CoAtNet output unavailable; submission.csv remains the validated transformer ensemble', flush=True)
+    
+    # V18 output hygiene.
+    for _v18_temp in (
+        _blend_work / 'submission_coatnet.csv',
+        _blend_work / 'submission_transformer_0920.csv',
+    ):
+        try:
+            if _v18_temp.is_file():
+                _v18_temp.unlink()
+        except OSError:
+            pass
+
+except Exception as _d42_error:
+    import traceback as _d42_traceback
+    print(
+        '[DINOsaur V4.5] final fusion failed; '
+        'restoring calibrated transformer submission: '
+        f'{type(_d42_error).__name__}: {_d42_error}',
+        flush=True,
+    )
+    _d42_traceback.print_exc()
+    if _d42_backup.is_file():
+        _d42_shutil.copy2(_d42_backup, _d42_primary)
+
+finally:
+    try:
+        if _d42_backup.is_file():
+            _d42_backup.unlink()
+    except OSError:
+        pass
+
+if not _d42_primary.is_file():
+    raise RuntimeError('submission.csv missing after V4.5 fail-safe')

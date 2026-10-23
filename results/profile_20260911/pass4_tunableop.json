@@ -1,0 +1,60 @@
+{
+ "tag": "pass4_tunableop",
+ "torch": "2.14.0+rocm7.2",
+ "equivalence_max_abs": {
+  "train": 1.1920928955078125e-06,
+  "eval": 1.1920928955078125e-06
+ },
+ "warm": 30,
+ "steps": 60,
+ "configs": {
+  "gpu_input": {
+   "segments": {
+    "data_cpu": {
+     "median_ms": 1.8,
+     "mean_ms": 1.8,
+     "p90_ms": 1.9
+    },
+    "h2d": {
+     "median_ms": 0.8,
+     "mean_ms": 0.8,
+     "p90_ms": 0.8
+    },
+    "gpu_prep": {
+     "median_ms": 0.6,
+     "mean_ms": 0.6,
+     "p90_ms": 0.6
+    },
+    "fwd": {
+     "median_ms": 177.4,
+     "mean_ms": 177.4,
+     "p90_ms": 177.5
+    },
+    "bwd": {
+     "median_ms": 504.1,
+     "mean_ms": 504.0,
+     "p90_ms": 504.6
+    },
+    "opt": {
+     "median_ms": 14.2,
+     "mean_ms": 14.3,
+     "p90_ms": 14.4
+    },
+    "item": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "total": {
+     "median_ms": 698.9,
+     "mean_ms": 698.9,
+     "p90_ms": 699.6
+    }
+   },
+   "warmup_s": 46.0,
+   "skips": 0,
+   "peak_mem_gib": 16.92,
+   "train_part_epoch_min_from_mean": 25.32
+  }
+ }
+}

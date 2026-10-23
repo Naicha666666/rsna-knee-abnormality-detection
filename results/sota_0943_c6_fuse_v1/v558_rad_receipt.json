@@ -1,0 +1,19 @@
+{
+  "e13_sha256": "ad9f19af73bfdf4e49263c0e45060dc3cb239e1195039b26dc8c0a3a6bcd1a8a",
+  "encoder_replicas": 2,
+  "encoder_sha256": "08629f7e7bd3e29b8ee9522ca3f65ce4d010a7ddf74f0ea3c7e3f3d0bbab0734",
+  "graph": "BTKD legacy Rad plus its matched calibrator preserved",
+  "layout_cpu_prefetch": true,
+  "legacy_cross_layout_pass_preserved": true,
+  "model_owned_head_shape": true,
+  "reference_heads_sha256": "0f465649799ecfbccaac1767844639e7ced44e1bc9babde6e4bac7c5d9b89eaa",
+  "seconds": 7.664332151412964,
+  "standalone_cross_layout_train_parity_claimed": false,
+  "status": "COMPLETE",
+  "tokens": [
+    64,
+    88,
+    56
+  ],
+  "unused_alternate_family_removed": true
+}

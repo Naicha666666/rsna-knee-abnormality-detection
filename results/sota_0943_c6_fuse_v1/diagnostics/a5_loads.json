@@ -1,0 +1,92 @@
+[
+  {
+    "config": {
+      "backbone": "vit_small_patch16_dinov3.lvd1689m",
+      "cond": "token",
+      "img": 336,
+      "meta": "none",
+      "n_meta": 0,
+      "n_slice": 16,
+      "norm": "none",
+      "pool": "xcodex",
+      "stem": "native"
+    },
+    "file": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights/m_f0.pt",
+    "fold": 0,
+    "sha256": "b447a665a92ed65e0f4cacf6800940ba7a6d585d0c36154ce18dee60ec48d5cd",
+    "strict": true,
+    "tensor_keys": 180
+  },
+  {
+    "config": {
+      "backbone": "vit_small_patch16_dinov3.lvd1689m",
+      "cond": "token",
+      "img": 336,
+      "meta": "none",
+      "n_meta": 0,
+      "n_slice": 16,
+      "norm": "none",
+      "pool": "xcodex",
+      "stem": "native"
+    },
+    "file": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights/m_f1.pt",
+    "fold": 1,
+    "sha256": "30bbe5f9afa24af57fd69bad293a4b9fe3ca2e1d737381bc06e469c5ed380e76",
+    "strict": true,
+    "tensor_keys": 180
+  },
+  {
+    "config": {
+      "backbone": "vit_small_patch16_dinov3.lvd1689m",
+      "cond": "token",
+      "img": 336,
+      "meta": "none",
+      "n_meta": 0,
+      "n_slice": 16,
+      "norm": "none",
+      "pool": "xcodex",
+      "stem": "native"
+    },
+    "file": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights/m_f2.pt",
+    "fold": 2,
+    "sha256": "5bdc4f72471e7c5db01f2f919ba39212087cbb5f2f76b619e4ba38446800b782",
+    "strict": true,
+    "tensor_keys": 180
+  },
+  {
+    "config": {
+      "backbone": "vit_small_patch16_dinov3.lvd1689m",
+      "cond": "token",
+      "img": 336,
+      "meta": "none",
+      "n_meta": 0,
+      "n_slice": 16,
+      "norm": "none",
+      "pool": "xcodex",
+      "stem": "native"
+    },
+    "file": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights/m_f3.pt",
+    "fold": 3,
+    "sha256": "f757ddc9531f903c6cd0729cadc7051fcdca03b281c89c39cc7957ab44fc2243",
+    "strict": true,
+    "tensor_keys": 180
+  },
+  {
+    "config": {
+      "backbone": "vit_small_patch16_dinov3.lvd1689m",
+      "cond": "token",
+      "img": 336,
+      "meta": "none",
+      "n_meta": 0,
+      "n_slice": 16,
+      "norm": "none",
+      "pool": "xcodex",
+      "stem": "native"
+    },
+    "file": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights/m_f4.pt",
+    "fold": 4,
+    "sha256": "066490a5c17b3887d1bfda1427f45b14cab416e7b1dcc16afc9a003cdcc08aad",
+    "strict": true,
+    "tensor_keys": 180
+  }
+]

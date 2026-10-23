@@ -1,0 +1,74 @@
+# ==========================================
+# RSNA Knee Abnormality Detection .gitignore
+# ==========================================
+
+# 1. Model Weights & Binary Checkpoints (Violates GitHub 100MB Limit)
+*.pt
+*.pth
+*.bin
+*.ckpt
+*.onnx
+*.h5
+*.safetensors
+*.tar.gz
+*.zip
+*.npy
+*.npz
+*.part*
+
+# 2. Entire Large Data Folders (9.7 GB of local DICOMs & weights)
+data/
+!data/labels/*.parquet
+!data/labels/*.jsonl
+
+# 3. Intermediate Experiment Checkpoints
+experiments/
+!experiments/**/*.log
+!experiments/**/*.json
+!experiments/**/*.md
+
+# 4. Embedded Environments, Wheels & Dynamic Libraries
+_coat_env/
+*_coat_env/
+*.so
+*.so.*
+*.dylib
+*.dll
+.venv/
+venv*/
+build/
+dist/
+*.egg-info/
+
+# 5. Python Bytecode & Caches
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 6. Logs & Temporary Runs
+archive/
+logs/
+*.log
+scratch/
+scratchpad/
+*.out
+*.pid
+*.status
+
+# 7. Secrets & Local Credentials
+*.key
+.unisound_key
+.env
+.env.*
+kaggle.json
+access_token
+
+# 8. IDE & Agent Caches
+.grok/
+.workbuddy-ai/
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

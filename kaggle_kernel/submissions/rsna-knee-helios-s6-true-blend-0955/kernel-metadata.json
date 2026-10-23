@@ -1,0 +1,20 @@
+{
+  "id": "easonyanyan/rsna-knee-helios-s6-true-blend-0955",
+  "title": "RSNA Knee Helios S6 True Blend 0955",
+  "code_file": "rsna-knee-helios-s6-true-blend-0955.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "heliosli/rsna-knee-compact-r6cnxfsss/2",
+    "nartaa/rsna-knee-publication-swa-weights-20261007/1",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004/1"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

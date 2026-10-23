@@ -1,0 +1,21 @@
+{
+  "id": "easonyanyan/rsna-knee-s6-helios-dual-reader",
+  "title": "RSNA Knee S6 Helios Dual Reader",
+  "code_file": "rsna-knee-s6-helios-dual-reader.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "false",
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-s6-convnextv2-weights",
+    "easonyanyan/rsna-knee-c6-warmstart-ep8-weights",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "nartaa/rsna-knee-publication-swa-weights-20261007"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

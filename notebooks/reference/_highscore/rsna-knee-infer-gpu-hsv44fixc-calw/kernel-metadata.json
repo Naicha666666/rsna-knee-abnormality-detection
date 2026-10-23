@@ -1,0 +1,32 @@
+{
+  "id": "shashwat1729/rsna-knee-infer-gpu-hsv44fixc-calw",
+  "id_no": 132695338,
+  "title": "RSNA Knee Infer GPU Hsv44fixc Calw",
+  "code_file": "rsna-knee-infer-gpu-hsv44fixc-calw.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "dreaddevelopment/raptor-knee-maxspan",
+    "dreaddevelopment/raptor-knee-widedense",
+    "prvsiyan/orthodiffusion-official-knee-mri-foundation",
+    "tonylica/rsna-knee-bend-dinov3-0917-repro-assets"
+  ],
+  "kernel_sources": [
+    "romantamrazov/rsna-knee-dinosaur-v4-train"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4"
+}

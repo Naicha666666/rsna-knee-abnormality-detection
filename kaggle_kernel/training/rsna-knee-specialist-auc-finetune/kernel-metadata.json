@@ -1,0 +1,22 @@
+{
+  "id": "georgexue666/rsna-knee-specialist-auc-finetune",
+  "title": "RSNA Knee Specialist AUC Finetune",
+  "code_file": "rsna-knee-specialist-auc-finetune.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "georgexue666/rsna-knee-s6-multimodal-targets",
+    "heliosli/rsna-knee-compact-r7cnxfsss",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "georgexue666/rsna-knee-c6-warmstart-ep8-weights",
+    "heliosli/rsna-knee-compact-v1"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

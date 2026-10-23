@@ -1,0 +1,17 @@
+{
+  "id": "easonyanyan/rsna-knee-s6-multimodal-train",
+  "title": "RSNA Knee S6 Multimodal Train",
+  "code_file": "rsna-knee-s6-multimodal-train.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_tpu": "false",
+  "enable_internet": "false",
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-s6-multimodal-targets",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

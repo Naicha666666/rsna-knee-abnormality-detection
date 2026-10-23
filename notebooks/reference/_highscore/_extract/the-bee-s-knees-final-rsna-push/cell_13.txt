@@ -1,0 +1,7 @@
+## 🧭 V6 — fixed outer-weight stress test
+
+The `.937` control remains intact through the preceding receipts. This final, label-free runtime overlay changes only five existing Transformer/Raptor mixing weights; it neither trains nor loads another model.
+
+On the exact V38 Gold58 component replay, the fixed policy moved macro AUC from **0.941932** to **0.947966** (`+0.006034`). All five leave-one-fold-out deltas were positive (`+0.005746` to `+0.007011`); a 30,000-draw paired bootstrap gave median `+0.005937`, 2.5th percentile `+0.002132`, and `P(Δ>0)=0.9991`. A nested fold estimate was approximately `+0.0040` macro.
+
+These are local validation figures, not a leaderboard claim. The policy is frozen in the next cell and reads no labels at runtime. An official score is reported only from a completed Kaggle submission row.

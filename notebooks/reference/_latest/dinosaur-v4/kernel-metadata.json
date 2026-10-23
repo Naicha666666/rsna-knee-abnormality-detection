@@ -1,0 +1,31 @@
+{
+  "id": "romantamrazov/rsna-knee-dinosaur-v4",
+  "id_no": 131749516,
+  "title": "RSNA Knee | DINOsaur V4 \ud83e\udd96 ",
+  "code_file": "rsna-knee-dinosaur-v4.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "dreaddevelopment/raptor-knee-maxspan",
+    "dreaddevelopment/raptor-knee-native384",
+    "dreaddevelopment/raptor-knee-native384dense",
+    "tonylica/rsna-knee-bend-dinov3-0917-repro-assets",
+    "renta0426/rsna-knee-public0033-meniscus-bag-v1"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "snowy615/rsna-knee-ortho-specialist-train",
+  "title": "RSNA Knee Ortho Specialist Train",
+  "code_file": "rsna-knee-ortho-specialist-train.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "snowy615/rsna-knee-s6-multimodal-targets",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "heliosli/rsna-knee-compact-r7cnxfsss"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

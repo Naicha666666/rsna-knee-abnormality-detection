@@ -1,0 +1,994 @@
+"""Notebook cell source: Medial Meniscus T30 / R60 / bag10 overlay.
+
+The exact 0.936 parent remains authoritative for every target except
+Medial Meniscus.  For Medial Meniscus only, rebuild the final rank from the
+already-computed Transformer and Raptor rank components plus the fullfit0033
+bag rank:
+
+    0.30 * Transformer rank
+  + 0.60 * Raptor rank
+  + 0.10 * fullfit0033 bag rank
+
+and then apply the same final average-tie percentile rerank used by the parent.
+
+Lateral Meniscus and the other ten targets are copied byte-for-byte from the
+exact 0.936 parent submission.
+"""
+
+import csv as _p33_csv
+import hashlib as _p33_hashlib
+import json as _p33_json
+import math as _p33_math
+import os as _p33_os
+from pathlib import Path as _P33Path
+
+import numpy as _p33_np
+
+
+_P33_LABELS = (
+    "ACL",
+    "MCL",
+    "Medial Meniscus",
+    "Lateral Meniscus",
+    "Medial OA",
+    "Lateral OA",
+    "PF OA",
+    "Effusion",
+    "Synovitis",
+    "Baker's",
+    "Contusion",
+    "Fracture",
+)
+
+_P33_MENISCUS = ("Medial Meniscus", "Lateral Meniscus")
+_P33_CUSTOM_TARGET = "Medial Meniscus"
+
+_P33_HEADER = ("StudyInstanceUID", *_P33_LABELS)
+_P33_BAG_HEADER = ("StudyInstanceUID", *_P33_MENISCUS)
+
+_P33_VISIBLE_UID_SHA256 = (
+    "f8308447b47011121885d31b754b690b1bd3b51a78e8f07c0b148161f8396ea0"
+)
+_P33_VISIBLE_PARENT_SHA256 = (
+    "1b03ce7f093efaffdf9acb9e8af05946bdd60b4fec1e0b1fc536b8198abb513b"
+)
+
+# Previous post-parent residual is disabled.
+_P33_PARENT_WEIGHT = _p33_np.float64(1.00)
+_P33_BAG_WEIGHT = _p33_np.float64(0.00)
+
+# New Medial-Meniscus-only three-way route.
+_P33_T_WEIGHT = _p33_np.float64(0.30)
+_P33_R_WEIGHT = _p33_np.float64(0.60)
+_P33_CUSTOM_BAG_WEIGHT = _p33_np.float64(0.10)
+
+
+def _p33_sha256_file(_p33_path):
+    _p33_digest = _p33_hashlib.sha256()
+    with _p33_path.open("rb") as _p33_handle:
+        for _p33_block in iter(lambda: _p33_handle.read(8 << 20), b""):
+            _p33_digest.update(_p33_block)
+    return _p33_digest.hexdigest()
+
+
+def _p33_uid_sha256(_p33_uids):
+    return _p33_hashlib.sha256(
+        "".join(f"{_p33_uid}\n" for _p33_uid in _p33_uids).encode("utf-8")
+    ).hexdigest()
+
+
+def _p33_read_tokens(_p33_path, _p33_expected_header, _p33_context):
+    with _p33_path.open("r", encoding="utf-8", newline="") as _p33_handle:
+        _p33_rows = list(_p33_csv.reader(_p33_handle))
+
+    if not _p33_rows or tuple(_p33_rows[0]) != tuple(_p33_expected_header):
+        raise RuntimeError(
+            f"public0033: {_p33_context} schema drift: "
+            f"{_p33_rows[0] if _p33_rows else None!r}"
+        )
+
+    _p33_data = _p33_rows[1:]
+    if not _p33_data or any(
+        len(_p33_row) != len(_p33_expected_header)
+        for _p33_row in _p33_data
+    ):
+        raise RuntimeError(
+            f"public0033: {_p33_context} row width/emptiness drift"
+        )
+    return _p33_data
+
+
+def _p33_matrix(_p33_rows, _p33_columns, _p33_context):
+    _p33_values = _p33_np.empty(
+        (len(_p33_rows), len(_p33_columns)),
+        dtype=_p33_np.float64,
+    )
+
+    for _p33_row_index, _p33_row in enumerate(_p33_rows):
+        for _p33_column_index, _p33_column in enumerate(_p33_columns):
+            try:
+                _p33_value = float(_p33_row[_p33_column])
+            except (TypeError, ValueError) as _p33_exc:
+                raise RuntimeError(
+                    f"public0033: {_p33_context} non-numeric value at "
+                    f"row={_p33_row_index}, column={_p33_column}"
+                ) from _p33_exc
+
+            if (
+                not _p33_math.isfinite(_p33_value)
+                or _p33_value < 0.0
+                or _p33_value > 1.0
+            ):
+                raise RuntimeError(
+                    f"public0033: {_p33_context} value outside [0,1] at "
+                    f"row={_p33_row_index}, column={_p33_column}"
+                )
+
+            _p33_values[
+                _p33_row_index,
+                _p33_column_index,
+            ] = _p33_value
+
+    return _p33_values
+
+
+def _p33_average_tie_rank_pct(_p33_values):
+    """Pandas rank(method='average', pct=True) over the full test set."""
+
+    _p33_values = _p33_np.asarray(
+        _p33_values,
+        dtype=_p33_np.float64,
+    )
+
+    if _p33_values.ndim != 1 or _p33_values.size == 0:
+        raise RuntimeError(
+            "public0033: rank input must be a non-empty vector"
+        )
+
+    if not _p33_np.isfinite(_p33_values).all():
+        raise RuntimeError(
+            "public0033: rank input contains non-finite values"
+        )
+
+    _p33_order = _p33_np.argsort(
+        _p33_values,
+        kind="mergesort",
+    )
+    _p33_sorted = _p33_values[_p33_order]
+    _p33_rank = _p33_np.empty(
+        _p33_values.size,
+        dtype=_p33_np.float64,
+    )
+
+    _p33_start = 0
+    while _p33_start < _p33_values.size:
+        _p33_end = _p33_start + 1
+
+        while (
+            _p33_end < _p33_values.size
+            and _p33_sorted[_p33_end]
+            == _p33_sorted[_p33_start]
+        ):
+            _p33_end += 1
+
+        _p33_rank[
+            _p33_order[_p33_start:_p33_end]
+        ] = (
+            (_p33_start + 1 + _p33_end)
+            / 2.0
+            / _p33_values.size
+        )
+
+        _p33_start = _p33_end
+
+    return _p33_rank
+
+
+def _p33_token_digest(_p33_rows, _p33_column):
+    _p33_digest = _p33_hashlib.sha256()
+
+    for _p33_row in _p33_rows:
+        _p33_digest.update(
+            _p33_row[0].encode("utf-8")
+        )
+        _p33_digest.update(b"\x1f")
+        _p33_digest.update(
+            _p33_row[_p33_column].encode("utf-8")
+        )
+        _p33_digest.update(b"\n")
+
+    return _p33_digest.hexdigest()
+
+
+def _p33_competition_root():
+    _p33_candidates = []
+
+    _p33_explicit = _p33_os.environ.get(
+        "PUBLIC0033_COMPETITION_ROOT"
+    )
+    if _p33_explicit:
+        _p33_candidates.append(
+            _P33Path(_p33_explicit)
+        )
+
+    _p33_parent_root = globals().get("ROOT")
+    if _p33_parent_root is not None:
+        _p33_candidates.append(
+            _P33Path(str(_p33_parent_root))
+        )
+
+    _p33_candidates.extend(
+        [
+            _P33Path(
+                "/kaggle/input/rsna-knee-abnormality-detection"
+            ),
+            _P33Path(
+                "/kaggle/input/competitions/rsna-knee-abnormality-detection"
+            ),
+        ]
+    )
+
+    _p33_seen = set()
+
+    for _p33_candidate in _p33_candidates:
+        _p33_key = str(_p33_candidate)
+
+        if _p33_key in _p33_seen:
+            continue
+
+        _p33_seen.add(_p33_key)
+
+        if (_p33_candidate / "test.csv").is_file():
+            return _p33_candidate
+
+    raise RuntimeError(
+        "public0033: competition test.csv is unavailable"
+    )
+
+
+def _p33_test_uids(_p33_root):
+    with (
+        _p33_root / "test.csv"
+    ).open(
+        "r",
+        encoding="utf-8",
+        newline="",
+    ) as _p33_handle:
+        _p33_rows = list(
+            _p33_csv.reader(_p33_handle)
+        )
+
+    if (
+        not _p33_rows
+        or _p33_rows[0].count(
+            "StudyInstanceUID"
+        ) != 1
+    ):
+        raise RuntimeError(
+            "public0033: test.csv StudyInstanceUID schema drift"
+        )
+
+    _p33_index = _p33_rows[0].index(
+        "StudyInstanceUID"
+    )
+
+    _p33_uids = [
+        _p33_row[_p33_index]
+        for _p33_row in _p33_rows[1:]
+    ]
+
+    if (
+        not _p33_uids
+        or any(
+            not _p33_uid
+            for _p33_uid in _p33_uids
+        )
+    ):
+        raise RuntimeError(
+            "public0033: test.csv contains empty UIDs"
+        )
+
+    if len(set(_p33_uids)) != len(_p33_uids):
+        raise RuntimeError(
+            "public0033: test.csv contains duplicate UIDs"
+        )
+
+    return _p33_uids
+
+
+def _p33_main():
+    _p33_work = _P33Path(
+        _p33_os.environ.get(
+            "PUBLIC0033_WORK_DIR",
+            "/kaggle/working",
+        )
+    )
+
+    _p33_parent_path = (
+        _p33_work
+        / "submission_parent_exact.csv"
+    )
+    _p33_current_path = (
+        _p33_work
+        / "submission.csv"
+    )
+    _p33_bag_path = (
+        _p33_work
+        / "public0033_bag_raw.csv"
+    )
+    _p33_audit_path = (
+        _p33_work
+        / "infra0021_runtime_receipt.json"
+    )
+    _p33_receipt_path = (
+        _p33_work
+        / "public0033_overlay_receipt.json"
+    )
+    _p33_temp_path = (
+        _p33_work
+        / "submission_public0033.tmp.csv"
+    )
+
+    for _p33_path, _p33_name in (
+        (
+            _p33_parent_path,
+            "parent backup",
+        ),
+        (
+            _p33_current_path,
+            "current parent submission",
+        ),
+        (
+            _p33_bag_path,
+            "bag raw prediction",
+        ),
+        (
+            _p33_audit_path,
+            "infra0021 audit receipt",
+        ),
+    ):
+        if not _p33_path.is_file():
+            raise RuntimeError(
+                f"public0033: required "
+                f"{_p33_name} is missing: "
+                f"{_p33_path}"
+            )
+
+    # The custom route requires the two components
+    # created by the upstream Raptor blending cell.
+    if (
+        "_blend_tr" not in globals()
+        or "_blend_cr" not in globals()
+        or "_blend_transformer" not in globals()
+        or "_blend_coatnet" not in globals()
+    ):
+        raise RuntimeError(
+            "public0033: Transformer/Raptor blend "
+            "components are unavailable"
+        )
+
+    if _P33_CUSTOM_TARGET not in _blend_tr.columns:
+        raise RuntimeError(
+            "public0033: Medial Meniscus missing "
+            "from Transformer rank component"
+        )
+
+    if _P33_CUSTOM_TARGET not in _blend_cr.columns:
+        raise RuntimeError(
+            "public0033: Medial Meniscus missing "
+            "from Raptor rank component"
+        )
+
+    _p33_audit = _p33_json.loads(
+        _p33_audit_path.read_text(
+            encoding="utf-8"
+        )
+    )
+
+    if _p33_audit.get("status") != "passed":
+        raise RuntimeError(
+            "public0033: infra0021 audit did not pass"
+        )
+
+    _p33_parent_sha = _p33_sha256_file(
+        _p33_parent_path
+    )
+
+    if (
+        _p33_sha256_file(_p33_current_path)
+        != _p33_parent_sha
+    ):
+        raise RuntimeError(
+            "public0033: submission.csv changed "
+            "after the parent audit"
+        )
+
+    _p33_parent_rows = _p33_read_tokens(
+        _p33_parent_path,
+        _P33_HEADER,
+        "parent backup",
+    )
+
+    _p33_parent_uids = [
+        _p33_row[0]
+        for _p33_row in _p33_parent_rows
+    ]
+
+    if (
+        any(
+            not _p33_uid
+            for _p33_uid in _p33_parent_uids
+        )
+        or len(
+            set(_p33_parent_uids)
+        )
+        != len(_p33_parent_uids)
+    ):
+        raise RuntimeError(
+            "public0033: parent backup UID identity drift"
+        )
+
+    _p33_root = _p33_competition_root()
+    _p33_test = _p33_test_uids(
+        _p33_root
+    )
+
+    if _p33_parent_uids != _p33_test:
+        raise RuntimeError(
+            "public0033: parent backup UID order "
+            "differs from test.csv"
+        )
+
+    # Explicitly verify that upstream rank components
+    # have the same row identity as the parent.
+    _p33_transformer_uids = (
+        _blend_transformer[
+            "StudyInstanceUID"
+        ]
+        .astype(str)
+        .tolist()
+    )
+
+    _p33_raptor_uids = (
+        _blend_coatnet[
+            "StudyInstanceUID"
+        ]
+        .astype(str)
+        .tolist()
+    )
+
+    if (
+        _p33_transformer_uids
+        != _p33_parent_uids
+    ):
+        raise RuntimeError(
+            "public0033: Transformer component UID order drift"
+        )
+
+    if (
+        _p33_raptor_uids
+        != _p33_parent_uids
+    ):
+        raise RuntimeError(
+            "public0033: Raptor component UID order drift"
+        )
+
+    _p33_uid_sha = _p33_uid_sha256(
+        _p33_parent_uids
+    )
+
+    _p33_visible_reference = (
+        _p33_uid_sha
+        == _P33_VISIBLE_UID_SHA256
+    )
+
+    if (
+        _p33_visible_reference
+        and _p33_parent_sha
+        != _P33_VISIBLE_PARENT_SHA256
+    ):
+        raise RuntimeError(
+            "public0033: visible parent "
+            "submission SHA gate failed"
+        )
+
+    _p33_parent_values = _p33_matrix(
+        _p33_parent_rows,
+        tuple(
+            range(
+                1,
+                len(_P33_HEADER),
+            )
+        ),
+        "parent backup",
+    )
+
+    _p33_bag_rows = _p33_read_tokens(
+        _p33_bag_path,
+        _P33_BAG_HEADER,
+        "bag raw",
+    )
+
+    _p33_bag_by_uid = {}
+
+    for _p33_row in _p33_bag_rows:
+        _p33_uid = _p33_row[0]
+
+        if (
+            not _p33_uid
+            or _p33_uid
+            in _p33_bag_by_uid
+        ):
+            raise RuntimeError(
+                "public0033: bag raw UID identity drift"
+            )
+
+        _p33_bag_by_uid[
+            _p33_uid
+        ] = _p33_row
+
+    if (
+        set(_p33_bag_by_uid)
+        != set(_p33_parent_uids)
+    ):
+        raise RuntimeError(
+            "public0033: bag raw UID set "
+            "differs from parent backup"
+        )
+
+    _p33_bag_rows_ordered = [
+        _p33_bag_by_uid[_p33_uid]
+        for _p33_uid in _p33_parent_uids
+    ]
+
+    _p33_bag_values = _p33_matrix(
+        _p33_bag_rows_ordered,
+        (1, 2),
+        "bag raw",
+    )
+
+    _p33_final_rows = [
+        list(_p33_row)
+        for _p33_row in _p33_parent_rows
+    ]
+
+    _p33_final_values = (
+        _p33_parent_values.copy()
+    )
+
+    # All eleven untouched targets must remain byte-identical
+    # to the exact 0.936 parent.
+    _p33_untouched_columns = []
+    _p33_untouched_digests_parent = {}
+
+    for (
+        _p33_target_index,
+        _p33_target,
+    ) in enumerate(_P33_LABELS):
+
+        _p33_column = (
+            _p33_target_index + 1
+        )
+
+        if (
+            _p33_target
+            != _P33_CUSTOM_TARGET
+        ):
+            _p33_untouched_columns.append(
+                _p33_column
+            )
+
+            _p33_untouched_digests_parent[
+                _p33_target
+            ] = _p33_token_digest(
+                _p33_parent_rows,
+                _p33_column,
+            )
+
+            continue
+
+        # Transformer rank and Raptor rank are exactly the
+        # pre-final-rerank components used by the parent.
+        _p33_tr_rank = _p33_np.asarray(
+            _blend_tr[
+                _P33_CUSTOM_TARGET
+            ].to_numpy(),
+            dtype=_p33_np.float64,
+        )
+
+        _p33_r_rank = _p33_np.asarray(
+            _blend_cr[
+                _P33_CUSTOM_TARGET
+            ].to_numpy(),
+            dtype=_p33_np.float64,
+        )
+
+        _p33_bag_rank = (
+            _p33_average_tie_rank_pct(
+                _p33_bag_values[
+                    :,
+                    _P33_MENISCUS.index(
+                        _P33_CUSTOM_TARGET
+                    ),
+                ]
+            )
+        )
+
+        if (
+            _p33_tr_rank.shape
+            != _p33_bag_rank.shape
+            or _p33_r_rank.shape
+            != _p33_bag_rank.shape
+        ):
+            raise RuntimeError(
+                "public0033: custom component "
+                "shape mismatch"
+            )
+
+        if not (
+            _p33_np.isfinite(
+                _p33_tr_rank
+            ).all()
+            and _p33_np.isfinite(
+                _p33_r_rank
+            ).all()
+            and _p33_np.isfinite(
+                _p33_bag_rank
+            ).all()
+        ):
+            raise RuntimeError(
+                "public0033: custom component "
+                "contains non-finite values"
+            )
+
+        # Directly replace a portion of the Transformer vote.
+        # Raptor remains at the parent's original 60%.
+        _p33_pre_rank = (
+            _P33_T_WEIGHT
+            * _p33_tr_rank
+            + _P33_R_WEIGHT
+            * _p33_r_rank
+            + _P33_CUSTOM_BAG_WEIGHT
+            * _p33_bag_rank
+        )
+
+        if (
+            not _p33_np.isfinite(
+                _p33_pre_rank
+            ).all()
+            or _p33_pre_rank.min()
+            < 0.0
+            or _p33_pre_rank.max()
+            > 1.0
+        ):
+            raise RuntimeError(
+                "public0033: invalid pre-rerank "
+                "Medial Meniscus values"
+            )
+
+        # Match the parent's final Raptor-blend contract.
+        _p33_blended = (
+            _p33_average_tie_rank_pct(
+                _p33_pre_rank
+            )
+        )
+
+        if (
+            not _p33_np.isfinite(
+                _p33_blended
+            ).all()
+            or _p33_blended.min()
+            < 0.0
+            or _p33_blended.max()
+            > 1.0
+        ):
+            raise RuntimeError(
+                "public0033: invalid final "
+                "Medial Meniscus values"
+            )
+
+        _p33_final_values[
+            :,
+            _p33_target_index,
+        ] = _p33_blended
+
+        for (
+            _p33_row_index,
+            _p33_value,
+        ) in enumerate(
+            _p33_blended
+        ):
+            _p33_final_rows[
+                _p33_row_index
+            ][
+                _p33_column
+            ] = format(
+                float(_p33_value),
+                ".17g",
+            )
+
+    if any(
+        _p33_final_row[0]
+        != _p33_parent_row[0]
+        for (
+            _p33_final_row,
+            _p33_parent_row,
+        ) in zip(
+            _p33_final_rows,
+            _p33_parent_rows,
+        )
+    ):
+        raise RuntimeError(
+            "public0033: output UID token changed"
+        )
+
+    _p33_untouched_digests_final = {}
+
+    for (
+        _p33_target_index,
+        _p33_target,
+    ) in enumerate(_P33_LABELS):
+
+        if (
+            _p33_target
+            == _P33_CUSTOM_TARGET
+        ):
+            continue
+
+        _p33_column = (
+            _p33_target_index + 1
+        )
+
+        if any(
+            _p33_final_row[
+                _p33_column
+            ]
+            != _p33_parent_row[
+                _p33_column
+            ]
+            for (
+                _p33_final_row,
+                _p33_parent_row,
+            ) in zip(
+                _p33_final_rows,
+                _p33_parent_rows,
+            )
+        ):
+            raise RuntimeError(
+                "public0033: untouched raw "
+                f"token changed: {_p33_target}"
+            )
+
+        _p33_untouched_digests_final[
+            _p33_target
+        ] = _p33_token_digest(
+            _p33_final_rows,
+            _p33_column,
+        )
+
+    if (
+        _p33_untouched_digests_final
+        != _p33_untouched_digests_parent
+    ):
+        raise RuntimeError(
+            "public0033: untouched raw-token "
+            "digest mismatch"
+        )
+
+    if _p33_temp_path.exists():
+        _p33_temp_path.unlink()
+
+    with _p33_temp_path.open(
+        "w",
+        encoding="utf-8",
+        newline="",
+    ) as _p33_handle:
+
+        _p33_writer = _p33_csv.writer(
+            _p33_handle,
+            lineterminator="\n",
+        )
+
+        _p33_writer.writerow(
+            _P33_HEADER
+        )
+
+        _p33_writer.writerows(
+            _p33_final_rows
+        )
+
+    _p33_reloaded_rows = (
+        _p33_read_tokens(
+            _p33_temp_path,
+            _P33_HEADER,
+            "temporary overlay",
+        )
+    )
+
+    _p33_reloaded_uids = [
+        _p33_row[0]
+        for _p33_row
+        in _p33_reloaded_rows
+    ]
+
+    if (
+        _p33_reloaded_uids
+        != _p33_parent_uids
+    ):
+        raise RuntimeError(
+            "public0033: temporary overlay "
+            "UID order drift"
+        )
+
+    _p33_reloaded_values = (
+        _p33_matrix(
+            _p33_reloaded_rows,
+            tuple(
+                range(
+                    1,
+                    len(_P33_HEADER),
+                )
+            ),
+            "temporary overlay",
+        )
+    )
+
+    if not _p33_np.array_equal(
+        _p33_reloaded_values,
+        _p33_final_values,
+    ):
+        _p33_max_abs = float(
+            _p33_np.max(
+                _p33_np.abs(
+                    _p33_reloaded_values
+                    - _p33_final_values
+                )
+            )
+        )
+
+        raise RuntimeError(
+            "public0033: CSV/in-memory gate "
+            f"failed (max abs "
+            f"{_p33_max_abs:.3e})"
+        )
+
+    for (
+        _p33_target_index,
+        _p33_target,
+    ) in enumerate(_P33_LABELS):
+
+        if (
+            _p33_target
+            == _P33_CUSTOM_TARGET
+        ):
+            continue
+
+        _p33_column = (
+            _p33_target_index + 1
+        )
+
+        if (
+            _p33_token_digest(
+                _p33_reloaded_rows,
+                _p33_column,
+            )
+            != _p33_untouched_digests_parent[
+                _p33_target
+            ]
+        ):
+            raise RuntimeError(
+                "public0033: temporary untouched "
+                f"token drift: {_p33_target}"
+            )
+
+    _p33_os.replace(
+        _p33_temp_path,
+        _p33_current_path,
+    )
+
+    _p33_output_sha = (
+        _p33_sha256_file(
+            _p33_current_path
+        )
+    )
+
+    _p33_receipt = {
+        "schema_version": (
+            "public0033_medial_t30_r60_b10_overlay_v1"
+        ),
+        "status": "passed",
+        "parent_authority": str(
+            _p33_parent_path
+        ),
+        "parent_submission_sha256": (
+            _p33_parent_sha
+        ),
+        "parent_uid_sha256": (
+            _p33_uid_sha
+        ),
+        "visible_parent_sha_gate_applied": (
+            _p33_visible_reference
+        ),
+        "legacy_post_parent_residual": {
+            "parent_rank_weight": float(
+                _P33_PARENT_WEIGHT
+            ),
+            "bag_rank_weight": float(
+                _P33_BAG_WEIGHT
+            ),
+            "enabled": False,
+        },
+        "bag_raw_path": str(
+            _p33_bag_path
+        ),
+        "bag_raw_sha256": (
+            _p33_sha256_file(
+                _p33_bag_path
+            )
+        ),
+        "targets_changed": [
+            _P33_CUSTOM_TARGET
+        ],
+        "custom_route": {
+            "target": (
+                _P33_CUSTOM_TARGET
+            ),
+            "transformer_rank_weight": float(
+                _P33_T_WEIGHT
+            ),
+            "raptor_rank_weight": float(
+                _P33_R_WEIGHT
+            ),
+            "bag_rank_weight": float(
+                _P33_CUSTOM_BAG_WEIGHT
+            ),
+            "weights_sum": float(
+                _P33_T_WEIGHT
+                + _P33_R_WEIGHT
+                + _P33_CUSTOM_BAG_WEIGHT
+            ),
+            "final_rerank": True,
+        },
+        "rank": (
+            "float64_average_tie_percentile_rank_over_all_test_studies"
+        ),
+        "untouched_targets": [
+            _p33_target
+            for _p33_target
+            in _P33_LABELS
+            if _p33_target
+            != _P33_CUSTOM_TARGET
+        ],
+        "untouched_target_raw_token_sha256": (
+            _p33_untouched_digests_final
+        ),
+        "output_path": str(
+            _p33_current_path
+        ),
+        "output_sha256": (
+            _p33_output_sha
+        ),
+        "csv_vs_memory_max_abs": 0.0,
+    }
+
+    _p33_receipt_path.write_text(
+        _p33_json.dumps(
+            _p33_receipt,
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    print(
+        "public0033 Medial T30/R60/bag10 "
+        "overlay PASSED | "
+        f"studies={len(_p33_parent_uids)} "
+        f"output_sha256={_p33_output_sha}",
+        flush=True,
+    )
+
+
+_p33_main()

@@ -1,0 +1,71 @@
+model,label,u_bin,pos_minus_neg
+c6r,ACL,0,-0.0161
+c6r,ACL,1,-0.049
+c6r,ACL,2,-0.1177
+c6r,ACL,3,0.1208
+c6r,ACL,4,0.0619
+c6r,Medial Meniscus,0,-0.1027
+c6r,Medial Meniscus,1,0.1127
+c6r,Medial Meniscus,2,0.0203
+c6r,Medial Meniscus,3,-0.0229
+c6r,Medial Meniscus,4,-0.0074
+c6r,Medial OA,0,-0.0276
+c6r,Medial OA,1,0.1366
+c6r,Medial OA,2,0.005
+c6r,Medial OA,3,-0.069
+c6r,Medial OA,4,-0.0449
+c6r,MCL,0,0.149
+c6r,MCL,1,-0.0962
+c6r,MCL,2,-0.0329
+c6r,MCL,3,0.0145
+c6r,MCL,4,-0.0344
+c6r,Lateral Meniscus,0,-0.003
+c6r,Lateral Meniscus,1,-0.014
+c6r,Lateral Meniscus,2,-0.034
+c6r,Lateral Meniscus,3,-0.054
+c6r,Lateral Meniscus,4,0.105
+c6r,Lateral OA,0,-0.0156
+c6r,Lateral OA,1,-0.0313
+c6r,Lateral OA,2,-0.0528
+c6r,Lateral OA,3,0.0435
+c6r,Lateral OA,4,0.0563
+c6r,PF OA,0,-0.0027
+c6r,PF OA,1,-0.0226
+c6r,PF OA,2,0.0519
+c6r,PF OA,3,0.0141
+c6r,PF OA,4,-0.0407
+c10,ACL,0,-0.0328
+c10,ACL,1,-0.0758
+c10,ACL,2,0.0115
+c10,ACL,3,0.0685
+c10,ACL,4,0.0286
+c10,Medial Meniscus,0,-0.0322
+c10,Medial Meniscus,1,0.0516
+c10,Medial Meniscus,2,0.0022
+c10,Medial Meniscus,3,-0.0077
+c10,Medial Meniscus,4,-0.0138
+c10,Medial OA,0,0.0259
+c10,Medial OA,1,0.0919
+c10,Medial OA,2,-0.023
+c10,Medial OA,3,-0.042
+c10,Medial OA,4,-0.0528
+c10,MCL,0,0.0233
+c10,MCL,1,-0.0143
+c10,MCL,2,0.0171
+c10,MCL,3,0.0394
+c10,MCL,4,-0.0654
+c10,Lateral Meniscus,0,-0.017
+c10,Lateral Meniscus,1,-0.0134
+c10,Lateral Meniscus,2,-0.0321
+c10,Lateral Meniscus,3,0.0585
+c10,Lateral Meniscus,4,0.004
+c10,Lateral OA,0,-0.0208
+c10,Lateral OA,1,-0.058
+c10,Lateral OA,2,-0.0531
+c10,Lateral OA,3,0.0953
+c10,Lateral OA,4,0.0366
+c10,PF OA,0,-0.0126
+c10,PF OA,1,-0.0226
+c10,PF OA,2,0.0291
+c10,PF OA,3,0.0136
+c10,PF OA,4,-0.0075

@@ -1,0 +1,26 @@
+{
+  "id": "sujanmajhisuzan/rsna-knee-apex-grandmaster-stack",
+  "id_no": 137544628,
+  "title": "RSNA Knee Apex Grandmaster Stack",
+  "code_file": "rsna-knee-apex-grandmaster-stack.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "nartaa/rsna-knee-publication-swa-weights-20261007"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:2757e0c7d1e0a9cb43da657b97e223c321a98f5014bdf64f44f2f6b083ad2b2f",
+  "machine_shape": "NvidiaTeslaT4"
+}

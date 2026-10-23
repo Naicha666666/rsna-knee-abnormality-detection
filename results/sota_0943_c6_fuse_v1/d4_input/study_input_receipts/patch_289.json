@@ -1,0 +1,25 @@
+{
+  "contract": "d4-original-runtime-input-preparation-only-v2",
+  "reference_script_version_id": 348764100,
+  "reference_export_available": true,
+  "original_prepare_source_sha256": "de8cac1435608c3cffe20434cd4a67b0fa0dae7d61c0e27081bf9310b8c918ab",
+  "patched_prepare_source_sha256": "66f7ede735f8329d8ea0402bc8a0ca9fe9a1fe2899434c12ada321bbfab05c78",
+  "model_loader_modified": false,
+  "zone_head_modified": false,
+  "parent_infer_shard_replaced": false,
+  "grid_source_sha256": "26bc2034820f665bb30a48630ab80ce2ac50c8a473f0ad2eb780f014a3a83416",
+  "artifact_source_files": {
+    "d4_runtime": {
+      "file": "coatnet_d4_depthzone_swa_inference.py",
+      "sha256": "fedf2053d5cdd5ad6fb3793c33bdb226a42cf9eddfb3667f91b33e34670b7a1f"
+    },
+    "parent_runtime": {
+      "file": "coatnet_pairfilm_swa_inference.py",
+      "sha256": "60d016489aaca485ea94a33048238cd37ab284174c118c2e668006ded3cd0dd9"
+    },
+    "audited_runtime": {
+      "file": "coatnet_d4_depthzone_swa_inference.py",
+      "sha256": "fedf2053d5cdd5ad6fb3793c33bdb226a42cf9eddfb3667f91b33e34670b7a1f"
+    }
+  }
+}

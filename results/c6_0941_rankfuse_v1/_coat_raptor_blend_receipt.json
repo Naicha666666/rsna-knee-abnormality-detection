@@ -1,0 +1,7 @@
+{
+  "contract": "public_raptor_private_residual_coat_global_rank_blend_v1",
+  "finding_specific_weights": false,
+  "private_alpha": 0.4,
+  "public_raptor_alpha": 0.6,
+  "study_count": 3
+}

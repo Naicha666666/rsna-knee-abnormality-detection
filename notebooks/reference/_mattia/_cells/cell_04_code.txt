@@ -1,0 +1,97 @@
+from __future__ import annotations
+import os
+for _v in ('OMP_NUM_THREADS', 'OPENBLAS_NUM_THREADS', 'MKL_NUM_THREADS'):
+    os.environ.setdefault(_v, '4')
+import gc
+import hashlib
+import json
+import re
+import time
+import traceback
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+import numpy as np
+import pandas as pd
+import pydicom
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+def _cuda_execution_probe(index):
+    dev = torch.device(f'cuda:{index}')
+    try:
+        major, minor = torch.cuda.get_device_capability(index)
+        probe = nn.Conv2d(3, 4, kernel_size=3, padding=1).eval().to(dev)
+        with torch.inference_mode():
+            out = probe(torch.zeros((1, 3, 16, 16), device=dev))
+            if tuple(out.shape) != (1, 4, 16, 16):
+                raise RuntimeError(f'unexpected CUDA probe shape {tuple(out.shape)}')
+        torch.cuda.synchronize(index)
+        print(f'cuda:{index} probe PASS (compute {major}.{minor})')
+        del probe, out
+        torch.cuda.empty_cache()
+        return True
+    except Exception as exc:
+        print(f'cuda:{index} probe FAIL ({type(exc).__name__}: {exc}); using CPU fallback')
+        try:
+            torch.cuda.empty_cache()
+        except Exception:
+            pass
+        return False
+DEVS = []
+if torch.cuda.is_available():
+    DEVS = [torch.device(f'cuda:{i}') for i in range(torch.cuda.device_count()) if _cuda_execution_probe(i)]
+if not DEVS:
+    DEVS = [torch.device('cpu')]
+print(f'devices: {[str(d) for d in DEVS]}')
+T0 = time.time()
+SEED = 2026
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+TARGETS = ['ACL', 'MCL', 'Medial Meniscus', 'Lateral Meniscus', 'Medial OA', 'Lateral OA', 'PF OA', 'Effusion', 'Synovitis', "Baker's", 'Contusion', 'Fracture']
+CROP_MM = 130.0
+CACHE_IMG = 336
+GROUP = 3
+N_GROUP_MAX = 1
+CACHE_FRACTION = 0.45
+CACHE_BUDGET_MAX_GB = 24.0
+CACHE_BUDGET_GB = 12.0
+TEST_SHARE = 0.3
+HDR_THREADS = 16
+PIX_THREADS = 12
+ORDER_THREADS = 32
+ORDER_BUDGET_S = 5400
+RUNS = [{'name': 'r224', 'img': 224}, {'name': 'r336', 'img': 336}]
+EPOCHS = 10
+BATCH_STUDIES = 8
+AUG_ROT_DEG = 8.0
+AUG_SCALE = 0.08
+AUG_SHIFT = 0.05
+AUG_INTENSITY = 0.1
+LAT_MIN_OFFSET_MM = 20.0
+SLICE_BAND = (0.2, 0.8)
+RULES_NATIVE = {'order': 'normal', 'lat': 'centre', 'slot_fallback': False, 'decode_fill': 'nearest'}
+RULES_LEGACY = {'order': 'dominant_axis', 'lat': 'corner_x', 'slot_fallback': True, 'decode_fill': 'zero'}
+RULES = dict(RULES_NATIVE)
+LEGACY_LAT_OFFSET_MM = 5.0
+LR_HEAD = 0.001
+LR_BACKBONE = 8e-06
+UNFREEZE_LAST = 6
+WEIGHT_DECAY = 0.02
+EVAL_BATCH = 8
+TIME_BUDGET = 8.0 * 3600
+SLOTS_RECOVERED = [('SAG_FLUID_FS', 'Sagittal', True, True), ('COR_FLUID_FS', 'Coronal', True, True), ('AX_FLUID_FS', 'Axial', True, True), ('SAG_FLUID_NOFS', 'Sagittal', True, False), ('COR_T1', 'Coronal', False, False), ('SAG_T1', 'Sagittal', False, False)]
+SLOTS_PUBLIC = [('SAG_FLUID', 'Sagittal', None, True), ('COR_FLUID', 'Coronal', None, True), ('AX_FLUID', 'Axial', None, True), ('SAG_STRUCT', 'Sagittal', None, False), ('COR_STRUCT', 'Coronal', None, False), ('AX_STRUCT', 'Axial', None, False)]
+SLOT_SCHEME = os.environ.get('SLOT_SCHEME', 'recovered')
+SLOTS = SLOTS_PUBLIC if SLOT_SCHEME == 'public' else SLOTS_RECOVERED
+N_SLOT = len(SLOTS)
+POOL_PARTS = {'cls_mean': 2, 'cls_mean_focal': 3}
+SLOT_PRIOR_TABLE = {'ACL': (0, 3, 5), 'MCL': (1, 4), 'Medial Meniscus': (0, 1, 3, 4), 'Lateral Meniscus': (0, 1, 3, 4), 'Medial OA': (1, 4, 5), 'Lateral OA': (1, 4, 5), 'PF OA': (0, 2, 5), 'Effusion': (0, 2), 'Synovitis': (0, 2), "Baker's": (0,), 'Contusion': (0, 1, 2), 'Fracture': (0, 1, 2, 4, 5)}
+SLOT_PRIOR_STRENGTH = 0.55
+FATSAT_OPTS = {'FS', 'FATSAT', 'FAT_SAT', 'FSAT'}
+_SEP = re.compile('[_\\-.]')
+_FATSAT_RX = re.compile('\\bfs\\b|fatsat|fat sat|\\bstir\\b|\\bspair\\b|\\bspir\\b|\\bwe\\b|water excit|\\btirm\\b|\\bsting\\b|\\bfatsup\\b')
+_T1_RX = re.compile('\\bt1\\b|\\bt1w\\b')
+_T2_RX = re.compile('\\bt2\\b|\\bt2w\\b')
+_PD_RX = re.compile('\\bpd\\b|\\bpdw\\b|proton|\\bdp\\b|dens')

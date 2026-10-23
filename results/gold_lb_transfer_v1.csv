@@ -1,0 +1,13 @@
+parent,child,group,change,gold_a,gold_b,d_gold,lb_a,lb_b,d_lb,d_gold_lo,d_gold_hi,d_gold_recomputed,lb_inside_gold_ci,lb_beyond_noise,sign_agree
+C1,C2,label,+ Kimi LLM labels,0.8575,0.9081,0.0506,0.892,0.913,0.021,,,,,True,True
+C2,C3,label,+ Qwen labels,0.9081,0.9094,0.0013,0.913,0.914,0.001,,,,,False,True
+C5,C6,label,+ Grok + Gemma4 labels,0.9077,0.9068,-0.0009,0.93,0.935,0.005,,,,,True,False
+C6r,C6s,label,other 4 LLMs (NEW4),0.9043,0.9089,0.0046,0.933,0.933,0.0,-0.00966,0.01929,0.00436,True,False,False
+C6r,C6c,label,confidence-weighted BCE,0.9043,0.9043,0.0,0.933,0.927,-0.006,,,,,True,False
+C6r,C6k,label,image-teacher distillation,0.9043,0.9156,0.0113,0.933,0.931,-0.002,-0.00244,0.02381,0.01125,True,False,False
+C6r,C6w,input,legal windows (train + infer),0.9043,0.9062,0.0019,0.933,0.932,-0.001,,,,,False,False
+C6,C7,input,bag k 12 -> 16,0.9068,0.9058,-0.001,0.935,0.928,-0.007,,,,,True,True
+C6,C6_legalwin,input,legal windows (infer only),0.9068,0.9092,0.0024,0.935,0.933,-0.002,,,,,False,False
+C6,C6r,reseed,"retrain, same config",0.9068,0.9043,-0.0025,0.935,0.933,-0.002,-0.01798,0.01362,-0.00246,True,False,True
+C6r,C10_solo,arch,CoAtNet -> ConvNeXt-S,0.9043,0.9023,-0.002,0.933,0.912,-0.021,-0.01686,0.01308,-0.00163,False,True,True
+C3,C5,multi,"64 slices, k, epochs, bf16",0.9094,0.9077,-0.0017,0.914,0.93,0.016,,,,,True,False

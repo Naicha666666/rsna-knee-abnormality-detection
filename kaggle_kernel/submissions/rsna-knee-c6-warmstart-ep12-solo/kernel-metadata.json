@@ -1,0 +1,24 @@
+{
+  "id": "easonyanyan/rsna-knee-c6-warmstart-ep12-solo-coatnet-384",
+  "title": "RSNA Knee C6 WarmStart Ep12 Solo CoAtNet 384",
+  "code_file": "rsna-knee-c6-warmstart-ep12-solo.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "machine_shape": "NvidiaTeslaT4",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-c6-warmstart-ep12-weights"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}

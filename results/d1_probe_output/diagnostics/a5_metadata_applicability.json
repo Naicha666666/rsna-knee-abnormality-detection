@@ -1,0 +1,5 @@
+{
+  "no_matching_acquisition_uids": [],
+  "policy": "base-only contribution for explicit A5 absence; model failures remain fatal",
+  "studies": 3
+}

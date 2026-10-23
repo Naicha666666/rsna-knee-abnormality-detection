@@ -1,0 +1,64 @@
+# BEE_OUTER_WEIGHT_OVERLAY_V6
+"""Apply a fixed five-target outer-weight policy to existing V38 components.
+
+This cell runs after every .937 control receipt. It reads no labels and loads no
+new model. Medial Meniscus remains the public0033 T30/R60/bag10 route.
+"""
+import csv as _b6_csv
+import hashlib as _b6_hashlib
+import json as _b6_json
+import math as _b6_math
+import os as _b6_os
+from pathlib import Path as _B6Path
+import numpy as _b6_np
+import pandas as _b6_pd
+
+_B6_WORK=_B6Path('/kaggle/working');_B6_SUB=_B6_WORK/'submission.csv';_B6_CONTROL=_B6_WORK/'bees_knees_v4_frontier_audit_receipt.json';_B6_OUT=_B6_WORK/'bees_knees_v6_weight_overlay_receipt.json';_B6_TMP=_B6_WORK/'.bees_knees_v6_submission.tmp.csv'
+_B6_LABELS=['ACL','MCL','Medial Meniscus','Lateral Meniscus','Medial OA','Lateral OA','PF OA','Effusion','Synovitis',"Baker's",'Contusion','Fracture']
+_B6_WEIGHTS={'ACL':0.80,'Lateral OA':0.35,'PF OA':0.35,'Synovitis':0.35,"Baker's":0.375}
+_B6_HEADER=['StudyInstanceUID',*_B6_LABELS]
+
+def _b6_sha(p):
+ h=_b6_hashlib.sha256()
+ with p.open('rb') as f:
+  for b in iter(lambda:f.read(8<<20),b''):h.update(b)
+ return h.hexdigest()
+def _b6_col_digest(rows,k):
+ h=_b6_hashlib.sha256()
+ for r in rows:h.update((r[0]+'\x1f'+r[k]+'\n').encode())
+ return h.hexdigest()
+for p in (_B6_SUB,_B6_CONTROL):
+ if not p.is_file():raise FileNotFoundError(p)
+if _B6_OUT.exists() or _B6_TMP.exists():raise RuntimeError('Bee V6 refuses stale output/temporary artifacts')
+control=_b6_json.loads(_B6_CONTROL.read_text())
+parent_sha=_b6_sha(_B6_SUB)
+if control.get('status')!='BEES_KNEES_V4_FRONTIER_AUDIT_PASS' or control.get('submission_sha256_after')!=parent_sha:raise RuntimeError('Bee V6 control receipt/output mismatch')
+for name in ('_blend_tr','_blend_cr','_blend_transformer','_blend_coatnet'):
+ if name not in globals():raise RuntimeError(f'Bee V6 missing parent component: {name}')
+with _B6_SUB.open(newline='',encoding='utf-8') as f:allrows=list(_b6_csv.reader(f))
+if not allrows or allrows[0]!=_B6_HEADER:raise RuntimeError('Bee V6 submission schema drift')
+rows=allrows[1:];uids=[r[0] for r in rows]
+if not rows or len(set(uids))!=len(uids):raise RuntimeError('Bee V6 UID identity drift')
+for frame,name in ((_blend_transformer,'transformer'),(_blend_coatnet,'raptor')):
+ if frame['StudyInstanceUID'].astype(str).tolist()!=uids:raise RuntimeError(f'Bee V6 {name} UID order drift')
+parent_digests={t:_b6_col_digest(rows,j+1) for j,t in enumerate(_B6_LABELS)}
+final_rows=[list(r) for r in rows];changed={}
+for target,w in _B6_WEIGHTS.items():
+ tr=_b6_np.asarray(_blend_tr[target].to_numpy(),dtype=_b6_np.float64);cr=_b6_np.asarray(_blend_cr[target].to_numpy(),dtype=_b6_np.float64)
+ if tr.shape!=(len(rows),) or cr.shape!=(len(rows),) or not (_b6_np.isfinite(tr).all() and _b6_np.isfinite(cr).all()):raise RuntimeError(f'Bee V6 invalid component: {target}')
+ out=_b6_pd.Series((1.0-w)*tr+w*cr).rank(method='average',pct=True).to_numpy(_b6_np.float64)
+ if not _b6_np.isfinite(out).all() or out.min()<0 or out.max()>1:raise RuntimeError(f'Bee V6 invalid output: {target}')
+ k=_B6_HEADER.index(target);changed[target]=int(sum(format(float(v),'.17g')!=rows[i][k] for i,v in enumerate(out)))
+ for i,v in enumerate(out):final_rows[i][k]=format(float(v),'.17g')
+untouched=[t for t in _B6_LABELS if t not in _B6_WEIGHTS]
+for t in untouched:
+ k=_B6_HEADER.index(t)
+ if any(final_rows[i][k]!=rows[i][k] for i in range(len(rows))):raise RuntimeError(f'Bee V6 changed untouched target: {t}')
+with _B6_TMP.open('w',newline='',encoding='utf-8') as f:
+ w=_b6_csv.writer(f,lineterminator='\n');w.writerow(_B6_HEADER);w.writerows(final_rows)
+reload=_b6_pd.read_csv(_B6_TMP,dtype={'StudyInstanceUID':str});vals=reload[_B6_LABELS].to_numpy(_b6_np.float64)
+if reload.columns.tolist()!=_B6_HEADER or reload['StudyInstanceUID'].tolist()!=uids or not _b6_np.isfinite(vals).all() or vals.min()<0 or vals.max()>1:raise RuntimeError('Bee V6 serialized output gate failed')
+_b6_os.replace(_B6_TMP,_B6_SUB);out_sha=_b6_sha(_B6_SUB)
+receipt={'schema_version':'bees_knees_v6_fixed_outer_weights_v1','status':'BEES_KNEES_V6_WEIGHT_OVERLAY_PASS','submission_created':True,'competition_submission_performed':False,'parent_submission_sha256':parent_sha,'output_sha256':out_sha,'fixed_outer_weights':_B6_WEIGHTS,'changed_targets':list(_B6_WEIGHTS),'visible_changed_rows':changed,'untouched_targets':untouched,'untouched_parent_token_sha256':{t:parent_digests[t] for t in untouched},'runtime_label_reads':False,'runtime_new_models':False,'gold58_evidence':{'exact_v38_parent_macro_auc':0.9419323602942643,'candidate_macro_auc':0.9479663154248743,'delta':0.0060339551306100025,'leave_one_fold_out_min_delta':0.005745696644819609,'paired_bootstrap_q025':0.002131839922577719,'paired_bootstrap_p_positive':0.9990666666666667},'evidence_boundary':'Local Gold58 validation only; official score requires a completed Kaggle submission row with nonempty publicScore.'}
+_B6_OUT.write_text(_b6_json.dumps(receipt,indent=2,sort_keys=True)+'\n')
+print(f"BEES_KNEES_V6_WEIGHT_OVERLAY_PASS output_sha256={out_sha} changed={changed}",flush=True)

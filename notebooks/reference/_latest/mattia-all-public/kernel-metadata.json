@@ -1,0 +1,41 @@
+{
+  "id": "mattiaangeli/bend-the-knee-to-the-dinosaurs-all-public",
+  "id_no": 133147282,
+  "title": "Bend the Knee to the Dinosaurs (ALL PUBLIC)",
+  "code_file": "bend-the-knee-to-the-dinosaurs-all-public.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "dreaddevelopment/raptor-knee-maxspan",
+    "dreaddevelopment/raptor-knee-native384",
+    "dreaddevelopment/raptor-knee-native384dense",
+    "mattiaangeli/knee-mri-fold-weights",
+    "mattiaangeli/opencv-python-headless-4120088-x86",
+    "marwanmath/resnet-50-radimagenet-marwan",
+    "mattiaangeli/rsna-knee-coat-resgated-ep10-top3",
+    "antoinegg1/rsna-knee-e11-diverse-heads-v20",
+    "antoinegg1/rsna-knee-e9-radimagenet-heads-v15",
+    "pilkwang/rsna-knee-llm-labels",
+    "prvsiyan/rsna-knee-v52-radimagenet-heads-20260812",
+    "pilkwang/rsna-knee-weights"
+  ],
+  "kernel_sources": [
+    "sofiaanjenje/rsna-knee-e11-train",
+    "sofiaanjenje/rsna-knee-e13-train"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "docker_image": "gcr.io/kaggle-images/python@sha256:dafd4ce5668bbf1ad422e4c109e0f18c9623c3a7c7f48b0235f13142755c40b9",
+  "machine_shape": "NvidiaTeslaT4"
+}

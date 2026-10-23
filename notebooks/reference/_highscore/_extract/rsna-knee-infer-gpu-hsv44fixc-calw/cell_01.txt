@@ -1,0 +1,46 @@
+## One ablation worth saving: more models did not win here
+
+| Completed H&S version | Change from the DINOsaur parent | Public score | Submission |
+|:--|:--|--:|:--|
+| V44 | Reproduced DINOsaur V14 / V4.5 parent | **0.936** | `55802512` |
+| V45 | Add the fold-1 OrthoDiffusion specialist | 0.935 | `55805823` |
+| V47 | Equal-rank average of fold-1 and full-corpus specialists | 0.935 | `55808850` |
+
+These are completed competition results, checked on **31 August 2026**—not
+local validation AUCs. The specialist's local fold gate did **not** translate
+into a public-score gain in these runs. This is a useful negative result, not
+proof that OrthoDiffusion cannot help. For a clean base-versus-specialist
+experiment, keep **V44 as the control**; this revision retains V47's inference
+unchanged so its behavior remains inspectable.
+
+### Three details that can save a misleading experiment
+
+1. **A nonzero blend weight need not change an ordering.** In V47's three-study
+   visible run, the ACL branch was enabled but changed zero final values;
+   effusion changed two. The receipt's `changed_targets` is the permitted target
+   list; inspect `target_audit` for actual changes.
+2. **Rank-fused scores are not calibrated disease probabilities.** A value of
+   `0.5` is not a claim of 50% disease risk. Compare branches on the same study
+   cohort and preserve target/UID alignment.
+3. **A successful preview is an execution check, not validation.** Three rows
+   cannot establish generalization or full hidden-test runtime. Keep
+   report-related studies together when constructing your own validation split.
+
+### A tiny, read-only audit you can reuse
+
+After **Run All**, this checks that the blend receipt describes the exact final
+CSV and shows which admitted targets actually changed. It does not alter predictions.
+
+```python
+import hashlib, json
+from pathlib import Path
+work = Path('/kaggle/working')
+audit = json.loads((work / 'orthodiffusion_full_ensemble_hs_blend_receipt.json').read_text())
+assert audit['status'] == 'ORTHODIFFUSION_FULL_ENSEMBLE_HS_BLEND_COMPLETE'
+assert hashlib.sha256((work / 'submission.csv').read_bytes()).hexdigest() == audit['final_submission_sha256']
+print({target: item['changed_rows'] for target, item in audit['target_audit'].items()})
+```
+
+**This refresh changes documentation only:** all seven existing code cells,
+model inputs, blend weights, and notebook identity are preserved. It adds no
+inference work and makes no speedup or new-score claim.

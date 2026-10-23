@@ -1,0 +1,2542 @@
+
+==============================================================================
+NOTEBOOK: rsna-knee-data-structure-eda-baseline
+==============================================================================
+
+--- [md] ---
+<div style="background:linear-gradient(90deg,#1c3f6e 0%,#4d6d9a 45%,#b4636b 78%,#d97e5a 100%);
+            padding:22px 26px;border-radius:10px;color:#fff;font-family:sans-serif">
+<h1 style="margin:0 0 6px 0;font-size:29px">🦵 Twelve findings from one knee MRI — v4</h1>
+<h3 style="margin:0;font-weight:400;opacity:.92">Graded report targets · physical-scale sampling · adapted DINOv2 · cross-validated ensemble</h3>
+</div>
+
+The pipeline below is the one described in the sections that follow: a multilingual report
+extractor produces graded targets, series are sampled at a constant physical scale, and a
+partially unfrozen DINOv2 encoder is trained with a per-diagnosis attention head over
+sequence slots.
+
+Six things are different in this version. Each is a change to how the model is trained or
+validated, not to what it looks at, and each is behind a switch so it can be measured on
+its own.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | **Cross-validated ensemble** instead of one model on 4/5 of the data | A single fold leaves a fifth of the corpus unused and stakes the submission on one training run. Folds are rank-averaged, which is the only combination the metric reads |
+| 2 | **Honest annotated reference** | The previous selection rule scored the annotated studies *including those it had just trained on*. Here the annotated reference for a fold is the annotated studies held out of that fold, pooled across folds into a complete out-of-fold estimate |
+| 3 | **No vertical flip** | A knee has a fixed superior–inferior orientation. Flipping it swaps the femoral condyle with the tibial plateau, which is exactly the axis three of the OA targets are defined on. Replaced with small rotation, scale and shift, which preserve anatomy |
+| 4 | **Weight EMA** | Epoch selection on a noisy reference is a coin flip between neighbouring epochs. An exponential moving average makes the choice matter less and is usually slightly better than any single epoch |
+| 5 | **Pairwise ranking term** | The metric is a ranking metric; BCE optimises a proxy. A small ranking loss on confident pairs inside each batch optimises it directly |
+| 6 | **Laterality fallback, measured before it is trusted** | The `Laterality` tag is present on about half of studies. The sign of the patient x-coordinate can supply the rest, but only if it agrees with the tag where both exist — so the notebook measures that agreement and enables the fallback only if it passes |
+
+Two smaller repairs: `read_slot` referenced an undefined `N_SLICE` in its default argument,
+and the header pass now also retains `ImagePositionPatient` and `ImageLaterality`.
+
+Everything else — the extractor, the slot definitions, the physical-scale crop, the cache
+layout, the head, the encoder schedule — is unchanged, so a comparison against the previous
+version measures these six things and nothing else.
+
+--- [md] ---
+## 1. What the score rewards
+
+The score is the unweighted mean of twelve per-label ROC AUCs:
+
+$$\text{Score} \;=\; \frac{1}{12}\sum_{i=0}^{11} \mathrm{AUC}_i .$$
+
+Three consequences follow directly, and each one removes a design choice.
+
+**Only order matters.** $\mathrm{AUC}_i$ is invariant under any strictly increasing map
+of the scores for label $i$. Calibration is therefore worth nothing, and a fixed
+threshold is worth nothing. It also fixes how to combine models: averaging raw
+probabilities lets whichever model happens to be most confident dominate, whereas
+averaging *ranks* combines the only information the metric reads. Every combination
+below is a rank mean.
+
+**Every label costs the same.** Write $M$ for the mean AUC a good model could reach.
+A label left at chance contributes $0.5$ instead of roughly $M$, so it forfeits
+
+$$\frac{M - 0.5}{12}$$
+
+of the final score no matter how well the other eleven do. At $M = 0.85$ that is
+$0.029$ — larger than the gap between neighbouring places in a mature competition.
+Rare findings deserve *more* attention than common ones, not less, because a rare
+finding is where a model most easily ends up at chance.
+
+**Prevalence drifts are survivable, thresholds are not.** AUC is, in expectation,
+invariant to the positive rate. The competition states that prevalence is not guaranteed
+to match across the training, public and final sets, which would be fatal for any
+accuracy-like metric and for anything tuned to a threshold. It is not fatal here,
+provided nothing in the pipeline depends on a cutoff. Nothing below does.
+
+
+--- [md] ---
+## 2. Where the targets come from
+
+Only a small subset of the training studies carry the twelve per-condition labels. Every
+training study carries the original radiology report, and the data description invites
+deriving labels from it.
+
+The decisive structural fact is in the schemas rather than in the prose: `train.csv` has
+a `Report` column and `test.csv` does not. Text is available when fitting and absent when
+predicting. That rules out a fusion model with a text branch — at inference it would have
+nothing to read — and leaves three admissible uses of the reports:
+
+1. turn them into training targets, then fit a pure imaging model;
+2. use them as an auxiliary training signal, distilled into the image encoder and dropped
+   at inference;
+3. use them to weight studies by how confidently their labels could be read.
+
+This notebook takes the first and the third. A multilingual rule extractor reads each
+report clause by clause, deciding for each finding whether the clause asserts it, negates
+it, or hedges it, and emits a score together with a confidence. The confidence becomes a
+sample weight, so a study whose report says nothing about synovitis pulls on the
+synovitis head far less than one that names it.
+
+Two details matter more than the extractor's internals.
+
+**Reports are graded, annotations are thresholded.** The reporting radiologist and the
+annotator do not share a threshold. A report that says *small joint effusion* may sit
+against a negative annotation, because the annotator marked only effusions they judged
+significant. A rule of the form *term present $\Rightarrow$ positive* is therefore wrong
+by construction. Grading the mention — trace, unqualified, marked — is right, and costs
+nothing, because §1 established that only the order of the scores is read.
+
+**Derived labels are not independent across studies.** A report shared verbatim by
+several studies yields one target vector for all of them. That has to be respected when
+splitting; §7 does.
+
+
+--- [md] ---
+### Reading a report in nine languages
+
+The extractor is the first model in this pipeline, so it is built here rather than
+attached as a file. It runs over a few megabytes of text in seconds, and keeping it in
+line means the targets can never be a stale copy of what the current rules would produce.
+
+**Script settles itself; language does not.** Greek and Cyrillic are decided by Unicode
+alone. The Latin-script remainder is scored by stopword counts across the candidate
+languages and the winner must beat the runner-up by a margin; what fails that test stays
+`unknown` rather than being guessed. The tempting shortcut — a cascade of substring tests,
+`'the '` for English, `'la '` for French — fails badly here, because `la` is as common in
+Spanish as in French and whichever test runs first swallows both.
+
+**Normalise, then segment, then scope.** Case, diacritics and separators are folded first,
+which also repairs a codepoint problem: many Greek reports spell mu with the MICRO SIGN
+U+00B5 rather than U+03BC, and NFKD maps one onto the other. Text is then split into
+clauses, with a heading line attached to the value beneath it, because a report that reads
+`Fractures :` and then `Aucune.` states one thing across two lines and any method that
+splits them reads a negation as a positive.
+
+**Assertion, negation, hedge.** Within a clause the extractor asks which of three things
+the sentence is doing. Negation is not an edge case: for several findings most mentions
+are negative, since a report lists what was checked and found intact. Explicit normality
+counts as negation — *ligamentos cruzados y colaterales dentro de límites normales* is
+evidence of absence, not absence of evidence — except where a tear or a high grade is
+named in the same breath.
+
+**Stems, not phrases.** Four targets need an anatomy word and a pathology word together,
+and a lexicon of complete phrases cannot survive morphology: Turkish suffixes possessives
+onto the noun, Croatian and Greek decline it. Matching a stem and then requiring a side
+qualifier within a character window handles inflection without enumerating it, and a
+character window rather than a token window handles word order, which puts the side
+adjective before the noun in English and after it in Greek.
+
+**Grade, do not threshold.** §1 established that only the order of the scores is read, and
+§2 that the annotator's threshold is stricter than the reporting radiologist's. Together
+those say a mention should be scored by its emphasis — trace, unqualified, marked — and
+never binarised. Each target also carries a confidence, which becomes the sample weight:
+silence on a finding is weak evidence, and it should pull on the model weakly.
+
+### How an extractor like this is validated
+
+This is the part that decides whether any of the above is worth trusting, and it is
+harder than writing the rules, because the obvious measurement is the one that cannot
+carry the weight.
+
+**The dangerous failure is silent.** A rule that never fires does not raise an error; it
+emits a negative. A lexicon that is complete in English and thin in Greek therefore does
+not look broken — it looks like a corpus where Greek patients have fewer findings. Worse,
+the error is not random: language tracks the reporting institution, which tracks the
+scanner and the population, so a gap in one language is a systematic bias aligned with a
+site rather than noise that averages out.
+
+**Gauge one: agreement, on the annotated subset.** For each target, compare the extracted
+score against the per-condition annotation and read the AUC. This measures the right
+thing, and it is nearly useless for tuning, because that subset is small. The
+Hanley–McNeil approximation for the standard error of an AUC $A$ with $n_p$ positives and
+$n_n$ negatives is
+
+$$
+\mathrm{SE}(A)=\sqrt{\frac{A(1-A)+(n_p-1)(Q_1-A^{2})+(n_n-1)(Q_2-A^{2})}{n_p\,n_n}},
+\qquad
+Q_1=\frac{A}{2-A},\quad Q_2=\frac{2A^{2}}{1+A}.
+$$
+
+Put a plausible $A\approx0.8$ and a rare finding — a handful of positives among a few
+dozen studies — into that expression and the standard error lands near $0.09$, so the 95%
+interval spans roughly $\pm0.17$. Competitions are decided by differences an order of
+magnitude smaller. Choosing between two lexicons on this number is choosing by coin flip,
+and it will feel like signal every time.
+
+**Gauge two: coverage, on the whole corpus.** For each (study, target) pair, record
+whether any rule fired at all — assertion, negation or hedge. The *silence rate* is the
+fraction where none did. It needs no labels, so it runs on every report rather than on the
+annotated handful, and broken down by language and target it points straight at the
+missing vocabulary. A common finding that is silent in one language and not another is a
+lexicon gap. A rare finding that is silent nearly everywhere is simply rare, and silence
+there is correct.
+
+The two gauges answer different questions and neither substitutes for the other:
+
+| | measures | sample | can decide |
+|---|---|---|---|
+| agreement | is a fired rule *right* | small | whether a target's labels are usable at all |
+| silence rate | does a rule *fire* | whole corpus | which language and which finding to work on next |
+
+**The loop.** Read actual reports in each language before writing any pattern — the
+vocabulary comes from the corpus, not from a translation of the English list. Write rules,
+then measure both gauges. Then open the disagreements individually and ask what the
+extractor saw, because the aggregate says a target is weak while a handful of cases says
+*why*: a threshold mismatch, a missing negator, a morphological form the lexicon cannot
+reach. Fix, re-measure, and prefer changes that improve coverage on the large gauge over
+changes that improve agreement on the small one — the first is signal, the second is
+mostly sampling noise.
+
+
+--- [code #4] ---
+from __future__ import annotations
+import re
+import unicodedata
+
+--- [code #5] ---
+NEGATION = _rx(
+    # en
+    r"\bno\b", r"\bnot\b", r"\bwithout\b", r"\bnegative for\b", r"\babsence\b",
+
+--- [code #6] ---
+ANAT = {
+    "ACL": _rx(
+        r"anterior cruciate", r"\bacl\b",
+
+--- [code #7] ---
+STEM_MENISCUS = _rx(r"menisc\w*", r"menisk\w*", r"μηνισκ\w*", r"мениск\w*")
+STEM_CRUCIATE = _rx(r"cruciate", r"cruzado", r"croise", r"kruisband", r"kreuzband",
+                    r"capraz bag\w*", r"krizn\w*", r"χιαστ\w*", r"кръстн\w*",
+
+--- [code #8] ---
+SEV_LOW = _rx(
+    r"\bsmall\b", r"\bminimal\b", r"\btrace\b", r"\bmild\b", r"\bslight\b",
+    r"\btiny\b", r"\bscant\b", r"\bmimimal\b", r"\bdiscrete\b", r"\bfocal\b",
+
+--- [code #9] ---
+def _polarity(clause: str, anchor_end: int) -> str:
+    """Classify one clause as positive, negative or uncertain for a matched term.
+    Scope is the whole clause. Clause segmentation already keeps statements short, and
+
+--- [md] ---
+### Three repairs to the extractor
+
+These were found by running the section above against synthetic reports in the languages it
+claims to cover. All three are silent failures of exactly the kind §2 warns about: a rule
+that stops firing emits a negative and raises nothing.
+
+**A bare heading asserted a finding.** `clauses()` emits a heading joined to the value
+beneath it *and* the heading on its own. For the five targets whose anatomy word is itself
+the finding, the lone heading matched the term with no negation in scope, so a structured
+report reading `Fractures :` / `Aucune.` scored 0.84 for fracture off the heading while the
+joined clause correctly read the negation. Short headings no longer assert; the joined
+clause still carries the meaning, so `Fractures :` / `Fracture non deplacee du plateau
+tibial.` still scores 0.88.
+
+**`no fracture` sat in the decoy list.** A decoy skips the clause entirely, so the single
+most common English negative statement about fractures produced silence rather than an
+asserted negative — the study then pulled on the fracture head with the weight of a report
+that never mentioned fractures at all. `microfractur` and `fracture risk` stay: those are a
+surgical procedure and a prediction, neither of which is a fracture.
+
+**`none` and `nil` were not negators.** `Effusion:` / `None.` read as a positive effusion.
+The additions below are deliberately conservative — each was checked against a real finding
+that must survive it. One candidate was rejected on that test: French `\bnon\b` would have
+negated `fracture non deplacee`, which is a displaced-fracture qualifier, not a negation.
+
+--- [code #11] ---
+# Additions are unioned onto the compiled patterns rather than edited into them, so the
+# diff against the original lexicon stays readable and every entry can be reverted alone.
+NEGATION = _rx(
+
+--- [code #12] ---
+# --- extractor self-test -------------------------------------------------------------
+# Every claim the section above makes about the extractor is checked here on a synthetic
+# report in the relevant language. Rerun after any lexicon edit
+
+--- [md] ---
+## 3. Reading the acquisition
+
+`train_series.csv` describes each series with an anatomical plane and two binary flags,
+`Fluid_Sensitive` and `Fat_Suppression`. They name two physically independent properties.
+
+*Fluid sensitivity* is a property of the **contrast weighting**, set by repetition time
+$T_R$ and echo time $T_E$. Long $T_R$ suppresses $T_1$ contrast and long $T_E$ builds
+$T_2$ contrast, giving the familiar three regimes:
+
+$$
+\text{weighting} \;=\;
+\begin{cases}
+T_1 & T_R \lesssim 800\ \text{ms}\\
+T_2 & T_R \gtrsim 800\ \text{ms},\ T_E \gtrsim 60\ \text{ms}\\
+\text{PD} & T_R \gtrsim 800\ \text{ms},\ T_E \lesssim 60\ \text{ms}
+\end{cases}
+$$
+
+Fluid is bright on $T_2$ and intermediate on proton density; on $T_1$ it is dark. Gradient
+echo breaks the rule — its $T_R$ is short by design — so it is kept separate rather than
+called $T_1$.
+
+*Fat suppression* is a **preparation** applied on top of any weighting: a chemically
+selective pulse, an inversion (STIR), or water excitation. It is what makes marrow oedema
+conspicuous, because without it the bright fat signal hides it.
+
+The two are orthogonal, and both are recoverable from the header independently of the
+provided columns: $T_R$ and $T_E$ give the weighting, and `SeriesDescription`,
+`SequenceName` and `ScanOptions` name the suppression. Two cautions when reading those
+strings, both of which silently invert the answer if missed:
+
+- underscore is a word character, so a token test for `we` (water excitation) never fires
+  inside `t2_de3d_we_tra`. Separators must be normalised to spaces first.
+- `ScanOptions` must be matched as exact tokens. One vendor writes `SAT_GEMS` for
+  *spatial* saturation, so a substring test for `SAT` marks non-fat-suppressed series as
+  suppressed.
+
+### Which sequences to show the model
+
+A knee is read in three planes because the structures run in different directions:
+cruciate ligaments obliquely, best seen sagittally; collateral ligaments and the meniscal
+body coronally; patellar cartilage and the retinacula axially. Crossing plane with the two
+acquisition axes gives the slots below, chosen so that each of the twelve findings has at
+least one sequence that shows it well.
+
+| slot | plane | weighting | fat sat | what it carries |
+|---|---|---|---|---|
+| `SAG_FLUID_FS` | sagittal | PD / T2 | yes | meniscal tears, marrow oedema, effusion |
+| `COR_FLUID_FS` | coronal | PD / T2 | yes | collateral ligaments, meniscal body, oedema |
+| `AX_FLUID_FS` | axial | PD / T2 | yes | patellofemoral joint, synovium, effusion |
+| `SAG_FLUID_NOFS` | sagittal | PD / T2 | no | meniscal morphology at high contrast-to-noise |
+| `COR_T1` | coronal | T1 | no | marrow architecture, cartilage and bone outline |
+| `SAG_T1` | sagittal | T1 | no | anatomy, chronic change |
+
+A study rarely has all six; a per-slot presence mask carries the absences into the head,
+which §6 uses.
+
+
+--- [code #14] ---
+from __future__ import annotations
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+
+--- [code #15] ---
+# --- v4 configuration ----------------------------------------------------------------
+# Only the knobs this version adds or changes. Everything above keeps its original value,
+# so setting all of these to their "off" state reproduces the 
+
+--- [code #16] ---
+# --- v5: what the split needs -------------------------------------------------------
+BACKBONE_VARIANT = "small"          # "small" or "base"; must match what the bundle records
+BUNDLE_FILE = "rsna_20260807_v1.pt"  # the inference notebook
+
+--- [code #17] ---
+def log(msg):
+    print(f"[{time.time() - T0:7.1f}s] {msg}", flush=True)
+def find_root():
+
+--- [md] ---
+### Measuring the extractor before trusting it
+
+The two gauges described above, run on the corpus. Neither can be skipped: the silence rate
+says whether a rule *fires*, the agreement AUC says whether a fired rule is *right*, and
+only the first has enough sample to decide anything.
+
+The Hanley–McNeil interval is drawn on the agreement chart because it is the whole argument
+for not tuning on that number. If the bar for a target is shorter than its interval, any
+change that appears to improve it is indistinguishable from resampling noise.
+
+--- [code #19] ---
+train_df_diag = pd.read_csv(ROOT / "train.csv")
+_t = time.time()
+lab_diag = pd.DataFrame([extract(r) for r in train_df_diag["Report"].fillna("")])
+
+--- [code #20] ---
+HDR_TAGS = ["SeriesDescription", "SequenceName", "ScanOptions", "ScanningSequence",
+            "RepetitionTime", "EchoTime", "Laterality", "ImageLaterality",
+            "ImagePositionPatient", "PixelSpacing", "Rows",
+
+--- [code #21] ---
+# --- laterality resolution -----------------------------------------------------------
+# The tag is authoritative where it exists. Where it does not, the patient x-coordinate
+# can stand in, but only if it agrees with the tag on the studie
+
+--- [code #22] ---
+def pick_slots(series_df, plane_map):
+    """One series per slot per study.
+    Ties are broken toward the stack with the most slices: a thicker stack samples the
+
+--- [md] ---
+## 4. Sampling at a fixed physical scale
+
+A DICOM slice of $N \times N$ pixels with spacing $s$ mm/pixel covers $N s$ millimetres of
+anatomy. Both $N$ and $s$ vary widely across this corpus, so a fixed-pixel resize —
+"make everything $224 \times 224$" — hands the encoder images whose physical scale differs
+by a factor of about three. A meniscus then occupies a different number of pixels in
+different studies for no anatomical reason, and the network has to spend capacity undoing
+a nuisance transform it was handed for free.
+
+Crop to a constant physical extent $L$ before resizing. Taking the centre
+
+$$n \;=\; \Big\lfloor \frac{L}{s} \Big\rceil \quad\text{pixels}$$
+
+and resampling that to $P \times P$ leaves an effective scale of
+
+$$s_{\text{eff}} \;=\; \frac{L}{P}\ \ \text{mm/pixel}$$
+
+which no longer depends on the acquisition. With $L = 160$ mm — a knee fits comfortably
+inside that — and $P = 224$, every study reaches the encoder at $0.71$ mm/pixel.
+
+**Intensity needs the same treatment for the same reason.** MR has no absolute scale: the
+same tissue takes a different number on a different sequence, coil or day, so there is no
+Hounsfield-unit equivalent to anchor to. Normalising each series to its own 1st and 99th
+percentile — over the whole volume, not per slice, so slices keep their relative contrast
+— removes an offset that would otherwise track the acquisition site. Percentiles rather
+than min and max, because one bright vessel would otherwise compress everything else.
+
+Slices are taken from the central 60% of each stack. The outer slices of a knee series
+mostly lie outside the joint, and sampling them spends read bandwidth on soft tissue.
+
+
+--- [code #24] ---
+def _natural_key(name):
+    """Stable fallback for numeric filenames such as 1.dcm, 2.dcm, 10.dcm."""
+    return tuple(int(x) if x.isdigit() else x.lower()
+
+--- [md] ---
+## 5. Normalising left and right
+
+Four of the twelve targets — the two menisci and the medial and lateral tibiofemoral
+compartments — are medial/lateral pairs. Medial and lateral are defined relative to the
+body's midline, so which side of the *image* they fall on depends on which knee was
+scanned. Unless that is normalised, those four labels are being asked to learn from an
+axis the model cannot observe.
+
+The correction is not the same in every plane, because the mirror acts on a different
+image axis:
+
+- **Coronal and axial.** The medial-lateral direction lies in the image plane, so a left
+  knee is the horizontal mirror of a right knee. Flipping the last axis maps one onto the
+  other.
+- **Sagittal.** The medial-lateral direction is the *slice* axis; each individual slice is
+  unchanged by mirroring. What differs is the order in which the stack traverses the
+  joint, so the slice order is reversed rather than the pixels flipped.
+
+`Laterality` is present in the header for some studies and absent for others. Where it is
+absent the volume is left alone: a wrong flip is worse than no flip, and the presence mask
+lets the head learn how much to trust each slot.
+
+
+--- [code #26] ---
+def normalise_laterality(img, plane, lat):
+    """Map every knee onto a left-knee convention.
+    Coronal and axial views mirror under a horizontal flip. Sagittal stacks are not
+
+--- [md] ---
+## 5. Reading once, training many times
+
+The cost of this pipeline is dominated by reading, not by arithmetic. A study holds
+several series and each series holds tens of slices, so a study is on the order of a
+hundred and fifty files, and the corpus is hundreds of thousands of decodes.
+
+That is affordable once. It is not affordable once per epoch, and fine-tuning needs the
+same pixels every epoch. So the slot images are decoded a single time into memory and
+held as `uint8`:
+
+$$\text{bytes} \;=\; N_{\text{study}} \times N_{\text{slot}} \times S \times P^{2}$$
+
+with $S$ slices kept per slot at $P$ pixels. The exponent on $P$ is what makes this a
+real constraint rather than a detail — the cache grows with the *square* of resolution
+and only linearly with slices, so coverage is the cheap axis and resolution the expensive
+one. Eight bits cost nothing that the intensity normalisation of §4 has not already cost.
+
+The cached slices are read as groups of three, each group forming one three-channel
+encoder input. Training draws one group per study per step, which doubles as augmentation
+along the stack; inference averages the logits over all groups.
+
+Two implementation consequences follow, both about the queue between the reading threads
+and the consumer rather than about either alone:
+
+- buffers crossing that queue are `uint8` for the same reason the cache is.
+- reads are issued in bounded chunks. Submitting every job at once lets the readers run
+  arbitrarily far ahead and the completed results accumulate without limit.
+
+A valid submission file is written before any of this begins and overwritten once real
+predictions exist, so the run always leaves a scoreable file behind.
+
+
+--- [code #28] ---
+def build_cache(slot_map, plane_map, lat_map, tag):
+    """Decode every (study, slot) once into an in-memory uint8 array.
+    Fine-tuning revisits the same pixels every epoch. Reading them from the mount each
+
+--- [md] ---
+## 6. Aggregating slots into twelve decisions
+
+A study arrives as up to six slot embeddings $x_s \in \mathbb{R}^{d}$ with a presence
+mask $m_s \in \{0,1\}$. Pooling them identically would discard the reason the protocol
+has three planes at all: each finding is read on particular sequences, and a mean over
+slots dilutes the one that carries the evidence with five that do not.
+
+Project each slot, add a learned slot identity, give every diagnosis $o$ its own query
+$q_o \in \mathbb{R}^{H}$, and let it attend over the slots with absent ones masked out of
+the softmax:
+
+$$h_s \;=\; \phi(x_s) + e_s, \qquad
+\alpha_{o,s} \;=\; \frac{\exp\!\big(\langle h_s, q_o\rangle / \sqrt{H}\big)\, m_s}
+{\sum_{s'} \exp\!\big(\langle h_{s'}, q_o\rangle / \sqrt{H}\big)\, m_{s'}},$$
+
+$$c_o \;=\; \sum_s \alpha_{o,s}\, h_s, \qquad
+\ell_o \;=\; \langle c_o, w_o \rangle + b_o .$$
+
+The masked softmax renormalises over whatever the study actually contains, so a missing
+axial series shifts a diagnosis's attention onto the sequences that are present instead
+of feeding it a zero vector.
+
+**The head is deliberately this small.** Richer aggregations are available — attention
+over every slice group rather than every slot, or a maximum instead of a mean — and they
+are worse. The reason is structural: the label is attached to the *study*, so nothing in
+the supervision says which part of a study carries the finding. Extra attention
+parameters have no signal to learn that from, and spend their capacity on noise instead.
+Where the supervision is coarse, the aggregation should be too.
+
+
+--- [code #30] ---
+class SlotHead(nn.Module):
+    """Per-diagnosis attention over the slot embeddings of one study.
+    Each finding is read on particular sequences - cruciates sagittally, collateral
+
+--- [code #31] ---
+class Model(nn.Module):
+    """Encoder plus head, trained end to end.
+    A study arrives as a bag of slot images. The bag is flattened for the encoder and
+
+--- [md] ---
+### Why the encoder is trained rather than frozen
+
+A frozen self-supervised encoder is the cheap option and it is where this pipeline
+started. It stops paying, and the way it stops is informative: resolution, encoder size,
+slice coverage and slot aggregation were each varied while everything else was held
+fixed, and none of them moved the score beyond what the validation noise allows.
+
+That pattern is diagnostic. Those four axes change how much the model *looks*, how
+closely it looks, and how it summarises what it saw — but none of them changes the
+vocabulary it looks with. When every one of them saturates at the same place, the binding
+constraint is the representation itself. And there is an obvious reason to expect it
+here: the encoder learned its features from natural images, where nothing resembles the
+signal a torn meniscus makes on a proton-density sequence.
+
+So the encoder is adapted, with two restraints.
+
+**Only the last blocks move.** The early blocks of a vision transformer are generic edge
+and texture filters; the late blocks are where semantics live. There is not enough
+supervision here to improve the early ones and quite enough to damage them, so they stay
+frozen and the last few are trained.
+
+**The encoder learns far more slowly than the head.** The head is random at
+initialisation and has everything to learn; the encoder starts from a good solution and
+needs only to be moved off it. A single learning rate would either leave the head
+untrained or destroy the encoder in the first few hundred steps, so the two parameter
+groups get rates two orders of magnitude apart.
+
+Targets remain the report-derived labels of §2, weighted by the extractor's
+per-study confidence, so a study whose report never mentions a finding pulls weakly on
+that output rather than asserting a negative.
+
+
+--- [code #33] ---
+def build_model():
+    """Load the encoder and open the last few blocks for training.
+    Only the last UNFREEZE_LAST blocks and the final norm are trainable. The early
+
+--- [code #34] ---
+def take_group(cache_rows, g):
+    """Slice GROUP consecutive channels out of the cached slices."""
+    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
+
+--- [md] ---
+### The training-side changes
+
+**Augmentation that preserves anatomy.** The previous version flipped vertically. A knee is
+not symmetric about that axis: the femur is above and the tibia below, and `Medial OA`,
+`Lateral OA` and `PF OA` are defined by which bone surface carries the cartilage loss.
+Teaching the encoder to ignore up from down removes information three targets depend on.
+Rotation, scale and translation, all small, leave the anatomy intact while still preventing
+memorisation of the exact framing. Horizontal flip stays forbidden for the reason given in
+§5 — it would undo the laterality normalisation.
+
+**An exponential moving average of the weights.** Both validation references are noisy, and
+picking a single epoch by them is close to picking a neighbour at random. An average over
+the trajectory is more stable than any point on it, and it costs one extra copy of a model
+that is mostly frozen anyway.
+
+**A pairwise ranking term.** The score is an AUC, and AUC counts correctly ordered
+positive–negative pairs. Cross-entropy is a proxy for that, and a reasonable one, but the
+quantity itself can be optimised directly: inside each batch, for each target, take the
+studies whose graded target is confidently positive and confidently negative and push their
+logits apart. Batches are small, so this fires for the common targets and stays silent for
+the rare ones, which is why its weight is small and it supplements the cross-entropy rather
+than replacing it.
+
+--- [code #36] ---
+def augment(imgs):
+    """Small affine and intensity jitter over a whole bag. No flips of either kind.
+    Horizontal flip would undo the laterality normalisation of section 5. Vertical flip
+
+--- [md] ---
+## 7. Validating without fooling yourself
+
+Two leaks are specific to this setup, and both inflate a validation number without
+improving anything.
+
+**Shared reports.** Some reports are byte-identical across studies — a template read for
+an unremarkable knee. Every study in such a group receives the same derived target vector.
+Split the group across folds and the model is scored on a target whose source it has
+already been trained on. Folds are therefore assigned by a hash of the report text, which
+keeps every duplicate group whole inside one fold.
+
+**Two references, two meanings.** Out-of-fold performance is reported twice: against the
+derived targets, which covers every training study and measures whether the imaging model
+learned what the text says; and against the studies with per-condition annotations, which
+is far smaller and measures agreement with a reading of the *images*. The second is the
+one that resembles the test set. The first is the one with enough positives per label to
+distinguish a real difference from noise.
+
+### Choosing which epoch to keep
+
+Having two references makes selection a decision rather than a lookup, and the obvious
+rule — take the best epoch on the larger reference — is wrong. The two measure different
+things, so an epoch that gains on one while losing on the other has not been shown to be
+better; it has been shown to be different. Ranking by
+
+$$\text{score}(e) \;=\; \min\big(\mathrm{AUC}^{\text{derived}}_e,\ \mathrm{AUC}^{\text{annot}}_e\big)$$
+
+refuses that trade: an epoch is only preferred if its *weaker* evidence is stronger than
+every other epoch's weaker evidence. The checkpoint that wins under this rule is the one
+restored before predicting, which also makes the training length a measured quantity
+rather than a hyperparameter guessed in advance.
+
+
+--- [md] ---
+### Two changes to how this is validated
+
+**The annotated reference was scoring studies the model had trained on.** The annotated
+subset is small enough that all of it was previously handed to the epoch-selection rule,
+including the four fifths of it that sat in the training split. An epoch that had begun to
+memorise those studies therefore looked better on the reference meant to detect exactly
+that. Here each fold is scored only on the annotated studies held out of it, and the folds
+together produce one out-of-fold prediction per annotated study, so the final figure covers
+the whole annotated subset without any of it having been trained on by the model that
+predicted it.
+
+**One fold became a cross-validation.** Training a single model on four fifths of the corpus
+wastes the remaining fifth and stakes everything on one trajectory. Each fold now
+contributes a model, and the test predictions are combined as a rank mean per column —
+ranks rather than probabilities, for the reason given in §1.
+
+How many folds actually run is decided by the clock rather than in advance: the first fold
+is timed, and another is started only if the measured time plus a margin still fits inside
+the budget. A submission is written after every fold, so a run that is cut short still
+leaves the ensemble of whatever finished.
+
+--- [md] ---
+## Splitting training from inference
+
+This notebook now trains and saves; a separate notebook loads the saved bundle and predicts.
+The two halves were sharing one nine-hour budget, and the test half was taking a large bite
+of it: decoding roughly thirteen hundred test studies and running every fold over them, all
+inside the same run that had to fit the training. Whatever was left decided how many folds
+finished, so the ensemble was sized by the clock rather than by the data.
+
+Separating them changes three things.
+
+**Every fold finishes.** The full budget goes to training, so the fold loop is limited by
+`N_FOLDS` rather than by whatever time the test pass left behind.
+
+**The test set is decoded once per submission rather than once per experiment.** Retuning
+anything on the training side no longer pays the test decoding cost again.
+
+**Weights become an artifact.** The bundle carries the fold states together with the
+configuration they were trained under — slot definitions, image size, group layout, backbone
+variant — so the inference notebook reconstructs the same architecture from the file instead
+of from constants that have to be kept in sync by hand. A mismatch there is silent: the state
+dict loads, the numbers come out, and they are wrong.
+
+Set `RUN_TEST_INFERENCE = True` to get the old single-notebook behaviour back.
+
+### Three changes carried over from the inference notebook
+
+These came from the newer version and are reproduced here byte for byte, so the states this
+notebook saves load into it without an architecture mismatch.
+
+**Slices are ordered by patient-space position.** Filename order is not an anatomical
+guarantee, and the three channels of each input are three consecutive slices — scrambling
+them destroys exactly the local continuity that makes a pseudo-RGB stack useful. The stack
+direction is identified as the varying axis of `ImagePositionPatient`, falling back to
+`InstanceNumber` and then to a natural filename sort.
+
+**The head carries a weak view prior.** A 0.55 logit tilt toward the sequences where each
+finding is normally read: cruciates sagittally, collaterals coronally, patellar cartilage
+axially. It is a 1.7× tilt in the softmax, small enough for the learned query to override
+when the data disagrees, and it matters because a study-level label gives the attention
+nothing else to learn from.
+
+**Focal pooling alongside the mean.** The encoder output is summarised as class token, patch
+mean and the mean of the top eighth of patch responses. A tear, a contusion or a fracture is
+a small bright region in one slice; a global mean dilutes it by the ratio of lesion to knee,
+and the top-k term is what survives that.
+
+--- [code #40] ---
+def train_one_fold(fold, Ctr, Mtr, Y, W, tr, va, gi_va, gold_y_va, dev):
+    """Train one fold and return (ema_state, history, val_predictions)."""
+    model = build_model().to(dev)
+
+--- [code #41] ---
+def save_bundle(fold_states, extra=None):
+    """Write the weights together with the configuration they were trained under.
+    The inference notebook rebuilds the architecture from these fields rather than from
+
+--- [code #42] ---
+try:
+    main()
+except Exception:
+
+--- [code #43] ---
+# --- verify the bundle round-trips into the inference architecture --------------------
+# The failure this catches is silent: a state dict that loads with missing or unexpected
+# keys still predicts, and the numbers look plausible.
+
+--- [code #44] ---
+# --- what the run actually did -------------------------------------------------------
+# Reads the globals main() left behind. Safe to run after a partial run; anything the run
+# did not reach is simply skipped.
+
+--- [md] ---
+## Where the next points are
+
+**The silence chart is the work queue.** A target that is silent on a large share of reports
+is one whose training signal is mostly the 0.28 floor, and no amount of encoder capacity
+recovers a label that was never extracted. Read twenty reports in the language with the
+highest silence for the worst target and the missing vocabulary is usually three or four
+stems.
+
+**The annotator's threshold is a target-specific offset, not a global one.** Section 2 grades
+mentions because the reporting radiologist and the annotator disagree about what counts.
+That disagreement is not the same size for every finding — a trace effusion is routinely
+reported and rarely annotated, whereas a fracture is either there or not. The per-target
+agreement chart shows where the mismatch is worst, and the severity cutoffs in `_severity`
+are the knob for it.
+
+**Resolution is the untested axis.** The physical-scale argument in §4 fixes mm per pixel at
+`CROP_MM / IMG`. Both terms are free: a tighter crop at the same grid, or the same crop on a
+finer grid, each buy resolution where the meniscus is. The cache is quadratic in `IMG` and
+linear in slices, so the trade is against slice coverage, and the budget planner already
+makes that trade explicit.
+
+**A second encoder would ensemble well.** The folds currently differ only by their data
+split. Swapping the backbone for one fold — a larger DINOv2, or a supervised ImageNet
+transformer — decorrelates the errors far more than a different split does, and the rank
+mean already in place is the right way to combine them.
+
+**What not to spend time on.** Calibration, thresholds, and class rebalancing: §1 rules all
+three out. And no horizontal or vertical flip anywhere — the first undoes the laterality
+normalisation, the second exchanges the femur with the tibia.
+
+==============================================================================
+NOTEBOOK: rsna-knee-mri-baseline-with-pseudo-labels
+==============================================================================
+
+--- [code #0] ---
+import os
+import re
+import random
+
+--- [code #1] ---
+test = pd.read_csv(ROOT / "test.csv")
+test_series = pd.read_csv(ROOT / "test_series.csv")
+sample = pd.read_csv(ROOT / "sample_submission.csv")
+
+--- [code #2] ---
+@lru_cache(maxsize=18000)
+def ordered_paths(folder_text):
+    folder = Path(folder_text)
+
+--- [code #3] ---
+class KneeDataset(Dataset):
+    def __init__(
+        self,
+
+--- [code #4] ---
+ridge_models = joblib.load(RIDGE_PATH)
+model = KneeNet().to(IMG.device)
+state = torch.load(
+
+--- [code #5] ---
+print("=" * 60)
+print("Running image inference...")
+print("=" * 60)
+
+--- [code #6] ---
+def save_submission(
+    pred,
+    filename="submission.csv",
+
+==============================================================================
+NOTEBOOK: rsna-knee-plane-aware-2-5d-mil-gpu-baseline
+==============================================================================
+
+--- [md] ---
+# 🩻🧠 RSNA Knee — Report-Guided Multi-Series 2.5D GPU Baseline v3
+
+## Strategic summary
+
+**Primary objective:** recover a real MRI signal above the previous ~0.51 AUC regime while keeping the end-to-end Tesla T4 runtime **below two hours**.
+
+The previous run established three facts: (1) DICOM coverage is complete, (2) random initialization alone is not a defensible representation strategy for this small/sparse supervision regime, and (3) the old 12-token / 12-epoch schedule is too expensive. This version changes the representation and the runtime budget at the same time.
+
+### v3 design
+
+| Component | v3 decision | Why it should help |
+|---|---|---|
+| Runtime | **160 px, 6 MRI tokens/study, max 4 supervised epochs** | Roughly halves image-forward volume versus the 12-token baseline |
+| Preprocessing | **Direct competition path + adaptive slice ordering** | Avoids expensive recursive root discovery and full header sorting when filenames are already ordered |
+| Initialization | **Optional ImageNet checkpoint, never required** | Uses pretraining when available without introducing a hard dependency |
+| Multimodal signal | **Leakage-safe report-semantic warm-up** | Uses paired radiology reports as privileged train-only supervision without requiring reports at test time |
+| Sparse labels | **Target-aware oversampling + capped positive weighting** | Gives rare positive studies enough gradient exposure |
+| Numerical safety | **Finite-value MRI sanitization + fail-fast non-finite loss checks** | Prevents silent NaN training |
+| Validation | **Prevalence-stable holdout, raw macro ROC AUC** | Leaderboard movement is not accepted without validation support |
+
+### Training protocol
+
+1. Fit TF-IDF + TruncatedSVD **only on training-split reports**.
+2. Warm up the image representation for one short epoch by predicting the dense report-semantic embedding.
+3. Fine-tune the MRI model on the 12 official targets for at most four epochs, retaining a small report-semantic auxiliary loss.
+4. Select the best checkpoint strictly by validation macro ROC AUC.
+5. Stop training early if the wall-clock guard indicates that the two-hour budget is at risk.
+
+### Acceptance gate
+
+- **Reject:** macro AUC < 0.58 or non-finite training.
+- **Promising baseline:** macro AUC ≥ 0.62.
+- **Strong single-fold baseline:** macro AUC ≥ 0.68.
+
+This notebook does not fabricate labels, overwrite official supervision, smooth predictions toward priors, or use public-LB feedback inside training.
+
+--- [md] ---
+## 1. Imports, reproducibility and hard runtime budget
+
+--- [code #2] ---
+import os, re, gc, math, time, random, warnings
+from pathlib import Path
+from collections import defaultdict, Counter
+
+--- [md] ---
+## 2. Fast competition discovery and schema
+
+--- [code #4] ---
+SUBMISSION_ID = 'StudyInstanceUID'
+KNOWN_ROOT = Path('/kaggle/input/competitions/rsna-knee-abnormality-detection')
+def find_root():
+
+--- [md] ---
+## 3. Strict label audit
+
+Raw supervision is preserved. Unknown encodings fail fast instead of being silently coerced.
+
+--- [code #6] ---
+TRUE_TOKENS = {'1','true','t','yes','y','positive','present','abnormal'}
+FALSE_TOKENS = {'0','false','f','no','n','negative','absent','normal'}
+MISSING_TOKENS = {'','nan','none','null','na','n/a','unknown'}
+
+--- [md] ---
+## 4. Label visualizations
+
+--- [code #8] ---
+fig, ax = plt.subplots(figsize=(12,4))
+label_summary['positive_rate_observed'].sort_values(ascending=False).plot(kind='bar', ax=ax)
+ax.set_title('Observed positive prevalence by target')
+
+--- [md] ---
+## 5. Leakage-safe prevalence-stable holdout
+
+--- [code #10] ---
+PATIENT_CANDIDATES = ['PatientID','patient_id','PatientId','patientId','SubjectID','subject_id']
+patient_col = next((c for c in PATIENT_CANDIDATES if c in train_df.columns), None)
+def split_score(frame, tr_idx, va_idx):
+
+--- [md] ---
+## 6. Train-only report-semantic teacher
+
+The reports are **privileged training information**. TF-IDF and SVD are fitted only on the training split, so the validation images and validation reports never influence representation learning.
+
+--- [code #12] ---
+if 'Report' not in train_part.columns:
+    raise RuntimeError('Report column not found; v3 requires the paired train radiology reports.')
+train_reports = train_part['Report'].fillna('').astype(str).values
+
+--- [md] ---
+## 7. Fast path-level DICOM index
+
+--- [code #14] ---
+ALL_UIDS = set(train_df[SUBMISSION_ID].astype(str)) | set(test_df[SUBMISSION_ID].astype(str))
+def infer_uid(parts):
+    for part in reversed(parts):
+
+--- [md] ---
+## 8. One-header series metadata and sequence-aware selection
+
+--- [code #16] ---
+def classify_plane(iop):
+    try:
+        x=np.asarray([float(v) for v in iop],dtype=float)
+
+--- [code #17] ---
+PLANE_SEQUENCE_PRIORITY={
+    'sagittal':['PD_FS','T2_FS','STIR','PD','T2','T1','OTHER'],
+    'coronal':['PD_FS','T2_FS','STIR','PD','T2','T1','OTHER'],
+
+--- [md] ---
+## 9. Adaptive slice ordering
+
+Full per-slice header sorting was one of the largest runtime costs. v3 first tests whether natural filename order is consistent with DICOM `InstanceNumber` using five probes. Only inconsistent series fall back to a full header sort.
+
+--- [code #19] ---
+def natural_key(path):
+    name=Path(path).name
+    return [int(x) if x.isdigit() else x.lower() for x in re.split(r'(\d+)',name)]
+
+--- [md] ---
+## 10. MRI preprocessing sanity check
+
+--- [code #21] ---
+def read_dicom_array(path):
+    ds=pydicom.dcmread(path,force=True)
+    arr=ds.pixel_array.astype(np.float32)
+
+--- [md] ---
+## 11. Six-token 2.5D MRI dataset
+
+Each plane contributes two distributed triplets. This is the main runtime reduction: **6 tokens/study instead of 12**.
+
+--- [code #23] ---
+INPUT_MEAN=(0.5,0.5,0.5); INPUT_STD=(0.25,0.25,0.25)
+def resize2d(arr):
+    t=torch.from_numpy(arr).float()[None,None]
+
+--- [md] ---
+## 12. Optional pretrained encoder — zero hard dependencies
+
+--- [code #25] ---
+def quick_checkpoint_candidates():
+    out=[]
+    cache=Path(torch.hub.get_dir())/'checkpoints'/'resnet18-f37072fd.pth'
+
+--- [md] ---
+## 13. Target-aware MIL + report-semantic auxiliary head
+
+--- [code #27] ---
+class ReportGuidedMIL(nn.Module):
+    def __init__(self,backbone,n_targets,feature_dim=256,report_dim=REPORT_DIM):
+        super().__init__(); in_features=backbone.fc.in_features; backbone.fc=nn.Identity(); self.encoder=backbone
+
+--- [md] ---
+## 14. Loaders, target-aware oversampling and finite-safe losses
+
+--- [code #29] ---
+train_ds=KneeDataset(train_part,TARGETS,True,REPORT_EMBED)
+val_ds=KneeDataset(val_part,TARGETS,False,REPORT_EMBED)
+test_ds=KneeDataset(test_df,None,False,{})
+
+--- [md] ---
+## 15. One-epoch report-semantic warm-up
+
+When no ImageNet checkpoint is available this is the critical representation step: the MRI encoder is forced to predict dense semantic structure extracted from paired radiology reports before target fine-tuning.
+
+--- [code #31] ---
+# Freeze early encoder blocks during the short semantic warm-up for speed and stability.
+for name,p in model.encoder.named_parameters():
+    p.requires_grad = name.startswith('layer4')
+
+--- [md] ---
+## 16. Supervised GPU fine-tuning with wall-clock guard
+
+--- [code #33] ---
+encoder_params=list(model.encoder.parameters())
+head_params=[p for n,p in model.named_parameters() if not n.startswith('encoder.')]
+opt=torch.optim.AdamW([{'params':encoder_params,'lr':ENCODER_LR},{'params':head_params,'lr':HEAD_LR}],weight
+
+--- [md] ---
+## 17. Validation diagnostics
+
+--- [code #35] ---
+model.load_state_dict(best_state); model.to(DEVICE).eval()
+vp=[]; vy=[]; va=[]
+with torch.no_grad():
+
+--- [md] ---
+## 18. Raw test inference and submission
+
+--- [code #37] ---
+test_probs=[]
+with torch.no_grad():
+    for batch in test_loader:
+
+--- [md] ---
+## 19. Decision
+
+This notebook is a **challenger**, not a presumed winner. The report-guided warm-up has a plausible causal mechanism: it injects dense semantic supervision from the paired radiology reports into a train-only image representation, then tests whether that representation improves raw MRI validation AUC.
+
+**Keep only measured gains.** If the single-fold macro AUC does not materially exceed the previous ~0.51 regime, the next move should be an MRI-native pretrained encoder or target-specific anatomical localization—not more epochs of the same model.
+
+### Strongest counterargument
+
+TF-IDF/SVD report semantics may encode broad radiology language that is only weakly recoverable from six sampled MRI triplets. If validation does not improve, that falsifies this particular privileged-information transfer mechanism; it does not imply that multimodal learning itself is useless.
+
+==============================================================================
+NOTEBOOK: rsna-knee-public-4-fold-dinov2-v4
+==============================================================================
+
+--- [md] ---
+<div style="background:linear-gradient(90deg,#1c3f6e 0%,#4d6d9a 45%,#b4636b 78%,#d97e5a 100%);
+            padding:22px 26px;border-radius:10px;color:#fff;font-family:sans-serif">
+<h1 style="margin:0 0 6px 0;font-size:29px">🦵 Twelve findings from one knee MRI — v4</h1>
+<h3 style="margin:0;font-weight:400;opacity:.92">Graded report targets · physical-scale sampling · adapted DINOv2 · cross-validated ensemble</h3>
+</div>
+
+The pipeline below is the one described in the sections that follow: a multilingual report
+extractor produces graded targets, series are sampled at a constant physical scale, and a
+partially unfrozen DINOv2 encoder is trained with a per-diagnosis attention head over
+sequence slots.
+
+Six things are different in this version. Each is a change to how the model is trained or
+validated, not to what it looks at, and each is behind a switch so it can be measured on
+its own.
+
+| # | Change | Why |
+|---|---|---|
+| 1 | **Cross-validated ensemble** instead of one model on 4/5 of the data | A single fold leaves a fifth of the corpus unused and stakes the submission on one training run. Folds are rank-averaged, which is the only combination the metric reads |
+| 2 | **Honest annotated reference** | The previous selection rule scored the annotated studies *including those it had just trained on*. Here the annotated reference for a fold is the annotated studies held out of that fold, pooled across folds into a complete out-of-fold estimate |
+| 3 | **No vertical flip** | A knee has a fixed superior–inferior orientation. Flipping it swaps the femoral condyle with the tibial plateau, which is exactly the axis three of the OA targets are defined on. Replaced with small rotation, scale and shift, which preserve anatomy |
+| 4 | **Weight EMA** | Epoch selection on a noisy reference is a coin flip between neighbouring epochs. An exponential moving average makes the choice matter less and is usually slightly better than any single epoch |
+| 5 | **Pairwise ranking term** | The metric is a ranking metric; BCE optimises a proxy. A small ranking loss on confident pairs inside each batch optimises it directly |
+| 6 | **Laterality fallback, measured before it is trusted** | The `Laterality` tag is present on about half of studies. The sign of the patient x-coordinate can supply the rest, but only if it agrees with the tag where both exist — so the notebook measures that agreement and enables the fallback only if it passes |
+
+Two smaller repairs: `read_slot` referenced an undefined `N_SLICE` in its default argument,
+and the header pass now also retains `ImagePositionPatient` and `ImageLaterality`.
+
+Everything else — the extractor, the slot definitions, the physical-scale crop, the cache
+layout, the head, the encoder schedule — is unchanged, so a comparison against the previous
+version measures these six things and nothing else.
+
+--- [md] ---
+## 1. What the score rewards
+
+The score is the unweighted mean of twelve per-label ROC AUCs:
+
+$$\text{Score} \;=\; \frac{1}{12}\sum_{i=0}^{11} \mathrm{AUC}_i .$$
+
+Three consequences follow directly, and each one removes a design choice.
+
+**Only order matters.** $\mathrm{AUC}_i$ is invariant under any strictly increasing map
+of the scores for label $i$. Calibration is therefore worth nothing, and a fixed
+threshold is worth nothing. It also fixes how to combine models: averaging raw
+probabilities lets whichever model happens to be most confident dominate, whereas
+averaging *ranks* combines the only information the metric reads. Every combination
+below is a rank mean.
+
+**Every label costs the same.** Write $M$ for the mean AUC a good model could reach.
+A label left at chance contributes $0.5$ instead of roughly $M$, so it forfeits
+
+$$\frac{M - 0.5}{12}$$
+
+of the final score no matter how well the other eleven do. At $M = 0.85$ that is
+$0.029$ — larger than the gap between neighbouring places in a mature competition.
+Rare findings deserve *more* attention than common ones, not less, because a rare
+finding is where a model most easily ends up at chance.
+
+**Prevalence drifts are survivable, thresholds are not.** AUC is, in expectation,
+invariant to the positive rate. The competition states that prevalence is not guaranteed
+to match across the training, public and final sets, which would be fatal for any
+accuracy-like metric and for anything tuned to a threshold. It is not fatal here,
+provided nothing in the pipeline depends on a cutoff. Nothing below does.
+
+
+--- [md] ---
+## 2. Where the targets come from
+
+Only a small subset of the training studies carry the twelve per-condition labels. Every
+training study carries the original radiology report, and the data description invites
+deriving labels from it.
+
+The decisive structural fact is in the schemas rather than in the prose: `train.csv` has
+a `Report` column and `test.csv` does not. Text is available when fitting and absent when
+predicting. That rules out a fusion model with a text branch — at inference it would have
+nothing to read — and leaves three admissible uses of the reports:
+
+1. turn them into training targets, then fit a pure imaging model;
+2. use them as an auxiliary training signal, distilled into the image encoder and dropped
+   at inference;
+3. use them to weight studies by how confidently their labels could be read.
+
+This notebook takes the first and the third. A multilingual rule extractor reads each
+report clause by clause, deciding for each finding whether the clause asserts it, negates
+it, or hedges it, and emits a score together with a confidence. The confidence becomes a
+sample weight, so a study whose report says nothing about synovitis pulls on the
+synovitis head far less than one that names it.
+
+Two details matter more than the extractor's internals.
+
+**Reports are graded, annotations are thresholded.** The reporting radiologist and the
+annotator do not share a threshold. A report that says *small joint effusion* may sit
+against a negative annotation, because the annotator marked only effusions they judged
+significant. A rule of the form *term present $\Rightarrow$ positive* is therefore wrong
+by construction. Grading the mention — trace, unqualified, marked — is right, and costs
+nothing, because §1 established that only the order of the scores is read.
+
+**Derived labels are not independent across studies.** A report shared verbatim by
+several studies yields one target vector for all of them. That has to be respected when
+splitting; §7 does.
+
+
+--- [md] ---
+### Reading a report in nine languages
+
+The extractor is the first model in this pipeline, so it is built here rather than
+attached as a file. It runs over a few megabytes of text in seconds, and keeping it in
+line means the targets can never be a stale copy of what the current rules would produce.
+
+**Script settles itself; language does not.** Greek and Cyrillic are decided by Unicode
+alone. The Latin-script remainder is scored by stopword counts across the candidate
+languages and the winner must beat the runner-up by a margin; what fails that test stays
+`unknown` rather than being guessed. The tempting shortcut — a cascade of substring tests,
+`'the '` for English, `'la '` for French — fails badly here, because `la` is as common in
+Spanish as in French and whichever test runs first swallows both.
+
+**Normalise, then segment, then scope.** Case, diacritics and separators are folded first,
+which also repairs a codepoint problem: many Greek reports spell mu with the MICRO SIGN
+U+00B5 rather than U+03BC, and NFKD maps one onto the other. Text is then split into
+clauses, with a heading line attached to the value beneath it, because a report that reads
+`Fractures :` and then `Aucune.` states one thing across two lines and any method that
+splits them reads a negation as a positive.
+
+**Assertion, negation, hedge.** Within a clause the extractor asks which of three things
+the sentence is doing. Negation is not an edge case: for several findings most mentions
+are negative, since a report lists what was checked and found intact. Explicit normality
+counts as negation — *ligamentos cruzados y colaterales dentro de límites normales* is
+evidence of absence, not absence of evidence — except where a tear or a high grade is
+named in the same breath.
+
+**Stems, not phrases.** Four targets need an anatomy word and a pathology word together,
+and a lexicon of complete phrases cannot survive morphology: Turkish suffixes possessives
+onto the noun, Croatian and Greek decline it. Matching a stem and then requiring a side
+qualifier within a character window handles inflection without enumerating it, and a
+character window rather than a token window handles word order, which puts the side
+adjective before the noun in English and after it in Greek.
+
+**Grade, do not threshold.** §1 established that only the order of the scores is read, and
+§2 that the annotator's threshold is stricter than the reporting radiologist's. Together
+those say a mention should be scored by its emphasis — trace, unqualified, marked — and
+never binarised. Each target also carries a confidence, which becomes the sample weight:
+silence on a finding is weak evidence, and it should pull on the model weakly.
+
+### How an extractor like this is validated
+
+This is the part that decides whether any of the above is worth trusting, and it is
+harder than writing the rules, because the obvious measurement is the one that cannot
+carry the weight.
+
+**The dangerous failure is silent.** A rule that never fires does not raise an error; it
+emits a negative. A lexicon that is complete in English and thin in Greek therefore does
+not look broken — it looks like a corpus where Greek patients have fewer findings. Worse,
+the error is not random: language tracks the reporting institution, which tracks the
+scanner and the population, so a gap in one language is a systematic bias aligned with a
+site rather than noise that averages out.
+
+**Gauge one: agreement, on the annotated subset.** For each target, compare the extracted
+score against the per-condition annotation and read the AUC. This measures the right
+thing, and it is nearly useless for tuning, because that subset is small. The
+Hanley–McNeil approximation for the standard error of an AUC $A$ with $n_p$ positives and
+$n_n$ negatives is
+
+$$
+\mathrm{SE}(A)=\sqrt{\frac{A(1-A)+(n_p-1)(Q_1-A^{2})+(n_n-1)(Q_2-A^{2})}{n_p\,n_n}},
+\qquad
+Q_1=\frac{A}{2-A},\quad Q_2=\frac{2A^{2}}{1+A}.
+$$
+
+Put a plausible $A\approx0.8$ and a rare finding — a handful of positives among a few
+dozen studies — into that expression and the standard error lands near $0.09$, so the 95%
+interval spans roughly $\pm0.17$. Competitions are decided by differences an order of
+magnitude smaller. Choosing between two lexicons on this number is choosing by coin flip,
+and it will feel like signal every time.
+
+**Gauge two: coverage, on the whole corpus.** For each (study, target) pair, record
+whether any rule fired at all — assertion, negation or hedge. The *silence rate* is the
+fraction where none did. It needs no labels, so it runs on every report rather than on the
+annotated handful, and broken down by language and target it points straight at the
+missing vocabulary. A common finding that is silent in one language and not another is a
+lexicon gap. A rare finding that is silent nearly everywhere is simply rare, and silence
+there is correct.
+
+The two gauges answer different questions and neither substitutes for the other:
+
+| | measures | sample | can decide |
+|---|---|---|---|
+| agreement | is a fired rule *right* | small | whether a target's labels are usable at all |
+| silence rate | does a rule *fire* | whole corpus | which language and which finding to work on next |
+
+**The loop.** Read actual reports in each language before writing any pattern — the
+vocabulary comes from the corpus, not from a translation of the English list. Write rules,
+then measure both gauges. Then open the disagreements individually and ask what the
+extractor saw, because the aggregate says a target is weak while a handful of cases says
+*why*: a threshold mismatch, a missing negator, a morphological form the lexicon cannot
+reach. Fix, re-measure, and prefer changes that improve coverage on the large gauge over
+changes that improve agreement on the small one — the first is signal, the second is
+mostly sampling noise.
+
+
+--- [code #4] ---
+from __future__ import annotations
+import re
+import unicodedata
+
+--- [code #5] ---
+NEGATION = _rx(
+    # en
+    r"\bno\b", r"\bnot\b", r"\bwithout\b", r"\bnegative for\b", r"\babsence\b",
+
+--- [code #6] ---
+ANAT = {
+    "ACL": _rx(
+        r"anterior cruciate", r"\bacl\b",
+
+--- [code #7] ---
+STEM_MENISCUS = _rx(r"menisc\w*", r"menisk\w*", r"μηνισκ\w*", r"мениск\w*")
+STEM_CRUCIATE = _rx(r"cruciate", r"cruzado", r"croise", r"kruisband", r"kreuzband",
+                    r"capraz bag\w*", r"krizn\w*", r"χιαστ\w*", r"кръстн\w*",
+
+--- [code #8] ---
+SEV_LOW = _rx(
+    r"\bsmall\b", r"\bminimal\b", r"\btrace\b", r"\bmild\b", r"\bslight\b",
+    r"\btiny\b", r"\bscant\b", r"\bmimimal\b", r"\bdiscrete\b", r"\bfocal\b",
+
+--- [code #9] ---
+def _polarity(clause: str, anchor_end: int) -> str:
+    """Classify one clause as positive, negative or uncertain for a matched term.
+    Scope is the whole clause. Clause segmentation already keeps statements short, and
+
+--- [md] ---
+### Three repairs to the extractor
+
+These were found by running the section above against synthetic reports in the languages it
+claims to cover. All three are silent failures of exactly the kind §2 warns about: a rule
+that stops firing emits a negative and raises nothing.
+
+**A bare heading asserted a finding.** `clauses()` emits a heading joined to the value
+beneath it *and* the heading on its own. For the five targets whose anatomy word is itself
+the finding, the lone heading matched the term with no negation in scope, so a structured
+report reading `Fractures :` / `Aucune.` scored 0.84 for fracture off the heading while the
+joined clause correctly read the negation. Short headings no longer assert; the joined
+clause still carries the meaning, so `Fractures :` / `Fracture non deplacee du plateau
+tibial.` still scores 0.88.
+
+**`no fracture` sat in the decoy list.** A decoy skips the clause entirely, so the single
+most common English negative statement about fractures produced silence rather than an
+asserted negative — the study then pulled on the fracture head with the weight of a report
+that never mentioned fractures at all. `microfractur` and `fracture risk` stay: those are a
+surgical procedure and a prediction, neither of which is a fracture.
+
+**`none` and `nil` were not negators.** `Effusion:` / `None.` read as a positive effusion.
+The additions below are deliberately conservative — each was checked against a real finding
+that must survive it. One candidate was rejected on that test: French `\bnon\b` would have
+negated `fracture non deplacee`, which is a displaced-fracture qualifier, not a negation.
+
+--- [code #11] ---
+# Additions are unioned onto the compiled patterns rather than edited into them, so the
+# diff against the original lexicon stays readable and every entry can be reverted alone.
+NEGATION = _rx(
+
+--- [code #12] ---
+# --- extractor self-test -------------------------------------------------------------
+# Every claim the section above makes about the extractor is checked here on a synthetic
+# report in the relevant language. Rerun after any lexicon edit
+
+--- [md] ---
+## 3. Reading the acquisition
+
+`train_series.csv` describes each series with an anatomical plane and two binary flags,
+`Fluid_Sensitive` and `Fat_Suppression`. They name two physically independent properties.
+
+*Fluid sensitivity* is a property of the **contrast weighting**, set by repetition time
+$T_R$ and echo time $T_E$. Long $T_R$ suppresses $T_1$ contrast and long $T_E$ builds
+$T_2$ contrast, giving the familiar three regimes:
+
+$$
+\text{weighting} \;=\;
+\begin{cases}
+T_1 & T_R \lesssim 800\ \text{ms}\\
+T_2 & T_R \gtrsim 800\ \text{ms},\ T_E \gtrsim 60\ \text{ms}\\
+\text{PD} & T_R \gtrsim 800\ \text{ms},\ T_E \lesssim 60\ \text{ms}
+\end{cases}
+$$
+
+Fluid is bright on $T_2$ and intermediate on proton density; on $T_1$ it is dark. Gradient
+echo breaks the rule — its $T_R$ is short by design — so it is kept separate rather than
+called $T_1$.
+
+*Fat suppression* is a **preparation** applied on top of any weighting: a chemically
+selective pulse, an inversion (STIR), or water excitation. It is what makes marrow oedema
+conspicuous, because without it the bright fat signal hides it.
+
+The two are orthogonal, and both are recoverable from the header independently of the
+provided columns: $T_R$ and $T_E$ give the weighting, and `SeriesDescription`,
+`SequenceName` and `ScanOptions` name the suppression. Two cautions when reading those
+strings, both of which silently invert the answer if missed:
+
+- underscore is a word character, so a token test for `we` (water excitation) never fires
+  inside `t2_de3d_we_tra`. Separators must be normalised to spaces first.
+- `ScanOptions` must be matched as exact tokens. One vendor writes `SAT_GEMS` for
+  *spatial* saturation, so a substring test for `SAT` marks non-fat-suppressed series as
+  suppressed.
+
+### Which sequences to show the model
+
+A knee is read in three planes because the structures run in different directions:
+cruciate ligaments obliquely, best seen sagittally; collateral ligaments and the meniscal
+body coronally; patellar cartilage and the retinacula axially. Crossing plane with the two
+acquisition axes gives the slots below, chosen so that each of the twelve findings has at
+least one sequence that shows it well.
+
+| slot | plane | weighting | fat sat | what it carries |
+|---|---|---|---|---|
+| `SAG_FLUID_FS` | sagittal | PD / T2 | yes | meniscal tears, marrow oedema, effusion |
+| `COR_FLUID_FS` | coronal | PD / T2 | yes | collateral ligaments, meniscal body, oedema |
+| `AX_FLUID_FS` | axial | PD / T2 | yes | patellofemoral joint, synovium, effusion |
+| `SAG_FLUID_NOFS` | sagittal | PD / T2 | no | meniscal morphology at high contrast-to-noise |
+| `COR_T1` | coronal | T1 | no | marrow architecture, cartilage and bone outline |
+| `SAG_T1` | sagittal | T1 | no | anatomy, chronic change |
+
+A study rarely has all six; a per-slot presence mask carries the absences into the head,
+which §6 uses.
+
+
+--- [code #14] ---
+from __future__ import annotations
+import os
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+
+--- [code #15] ---
+# --- v4 configuration ----------------------------------------------------------------
+# Only the knobs this version adds or changes. Everything above keeps its original value,
+# so setting all of these to their "off" state reproduces the 
+
+--- [code #16] ---
+def log(msg):
+    print(f"[{time.time() - T0:7.1f}s] {msg}", flush=True)
+def find_root():
+
+--- [md] ---
+### Measuring the extractor before trusting it
+
+The two gauges described above, run on the corpus. Neither can be skipped: the silence rate
+says whether a rule *fires*, the agreement AUC says whether a fired rule is *right*, and
+only the first has enough sample to decide anything.
+
+The Hanley–McNeil interval is drawn on the agreement chart because it is the whole argument
+for not tuning on that number. If the bar for a target is shorter than its interval, any
+change that appears to improve it is indistinguishable from resampling noise.
+
+--- [code #18] ---
+train_df_diag = pd.read_csv(ROOT / "train.csv")
+_t = time.time()
+lab_diag = pd.DataFrame([extract(r) for r in train_df_diag["Report"].fillna("")])
+
+--- [code #19] ---
+HDR_TAGS = ["SeriesDescription", "SequenceName", "ScanOptions", "ScanningSequence",
+            "RepetitionTime", "EchoTime", "Laterality", "ImageLaterality",
+            "ImagePositionPatient", "PixelSpacing", "Rows",
+
+--- [code #20] ---
+# --- laterality resolution -----------------------------------------------------------
+# The tag is authoritative where it exists. Where it does not, the patient x-coordinate
+# can stand in, but only if it agrees with the tag on the studie
+
+--- [code #21] ---
+def pick_slots(series_df, plane_map):
+    """One series per slot per study.
+    Ties are broken toward the stack with the most slices: a thicker stack samples the
+
+--- [md] ---
+## 4. Sampling at a fixed physical scale
+
+A DICOM slice of $N \times N$ pixels with spacing $s$ mm/pixel covers $N s$ millimetres of
+anatomy. Both $N$ and $s$ vary widely across this corpus, so a fixed-pixel resize —
+"make everything $224 \times 224$" — hands the encoder images whose physical scale differs
+by a factor of about three. A meniscus then occupies a different number of pixels in
+different studies for no anatomical reason, and the network has to spend capacity undoing
+a nuisance transform it was handed for free.
+
+Crop to a constant physical extent $L$ before resizing. Taking the centre
+
+$$n \;=\; \Big\lfloor \frac{L}{s} \Big\rceil \quad\text{pixels}$$
+
+and resampling that to $P \times P$ leaves an effective scale of
+
+$$s_{\text{eff}} \;=\; \frac{L}{P}\ \ \text{mm/pixel}$$
+
+which no longer depends on the acquisition. With $L = 160$ mm — a knee fits comfortably
+inside that — and $P = 224$, every study reaches the encoder at $0.71$ mm/pixel.
+
+**Intensity needs the same treatment for the same reason.** MR has no absolute scale: the
+same tissue takes a different number on a different sequence, coil or day, so there is no
+Hounsfield-unit equivalent to anchor to. Normalising each series to its own 1st and 99th
+percentile — over the whole volume, not per slice, so slices keep their relative contrast
+— removes an offset that would otherwise track the acquisition site. Percentiles rather
+than min and max, because one bright vessel would otherwise compress everything else.
+
+Slices are taken from the central 60% of each stack. The outer slices of a knee series
+mostly lie outside the joint, and sampling them spends read bandwidth on soft tissue.
+
+
+--- [code #23] ---
+def read_slot(rec, n_slice=None, out_size=None):
+    """`n_slice` physically spread slices from one series, at `out_size` pixels.
+    Returns float32 [n_slice, out, out] normalised per-series to its 1st-99th
+
+--- [md] ---
+## 5. Normalising left and right
+
+Four of the twelve targets — the two menisci and the medial and lateral tibiofemoral
+compartments — are medial/lateral pairs. Medial and lateral are defined relative to the
+body's midline, so which side of the *image* they fall on depends on which knee was
+scanned. Unless that is normalised, those four labels are being asked to learn from an
+axis the model cannot observe.
+
+The correction is not the same in every plane, because the mirror acts on a different
+image axis:
+
+- **Coronal and axial.** The medial-lateral direction lies in the image plane, so a left
+  knee is the horizontal mirror of a right knee. Flipping the last axis maps one onto the
+  other.
+- **Sagittal.** The medial-lateral direction is the *slice* axis; each individual slice is
+  unchanged by mirroring. What differs is the order in which the stack traverses the
+  joint, so the slice order is reversed rather than the pixels flipped.
+
+`Laterality` is present in the header for some studies and absent for others. Where it is
+absent the volume is left alone: a wrong flip is worse than no flip, and the presence mask
+lets the head learn how much to trust each slot.
+
+
+--- [code #25] ---
+def normalise_laterality(img, plane, lat):
+    """Map every knee onto a left-knee convention.
+    Coronal and axial views mirror under a horizontal flip. Sagittal stacks are not
+
+--- [md] ---
+## 5. Reading once, training many times
+
+The cost of this pipeline is dominated by reading, not by arithmetic. A study holds
+several series and each series holds tens of slices, so a study is on the order of a
+hundred and fifty files, and the corpus is hundreds of thousands of decodes.
+
+That is affordable once. It is not affordable once per epoch, and fine-tuning needs the
+same pixels every epoch. So the slot images are decoded a single time into memory and
+held as `uint8`:
+
+$$\text{bytes} \;=\; N_{\text{study}} \times N_{\text{slot}} \times S \times P^{2}$$
+
+with $S$ slices kept per slot at $P$ pixels. The exponent on $P$ is what makes this a
+real constraint rather than a detail — the cache grows with the *square* of resolution
+and only linearly with slices, so coverage is the cheap axis and resolution the expensive
+one. Eight bits cost nothing that the intensity normalisation of §4 has not already cost.
+
+The cached slices are read as groups of three, each group forming one three-channel
+encoder input. Training draws one group per study per step, which doubles as augmentation
+along the stack; inference averages the logits over all groups.
+
+Two implementation consequences follow, both about the queue between the reading threads
+and the consumer rather than about either alone:
+
+- buffers crossing that queue are `uint8` for the same reason the cache is.
+- reads are issued in bounded chunks. Submitting every job at once lets the readers run
+  arbitrarily far ahead and the completed results accumulate without limit.
+
+A valid submission file is written before any of this begins and overwritten once real
+predictions exist, so the run always leaves a scoreable file behind.
+
+
+--- [code #27] ---
+def build_cache(slot_map, plane_map, lat_map, tag):
+    """Decode every (study, slot) once into an in-memory uint8 array.
+    Fine-tuning revisits the same pixels every epoch. Reading them from the mount each
+
+--- [md] ---
+## 6. Aggregating slots into twelve decisions
+
+A study arrives as up to six slot embeddings $x_s \in \mathbb{R}^{d}$ with a presence
+mask $m_s \in \{0,1\}$. Pooling them identically would discard the reason the protocol
+has three planes at all: each finding is read on particular sequences, and a mean over
+slots dilutes the one that carries the evidence with five that do not.
+
+Project each slot, add a learned slot identity, give every diagnosis $o$ its own query
+$q_o \in \mathbb{R}^{H}$, and let it attend over the slots with absent ones masked out of
+the softmax:
+
+$$h_s \;=\; \phi(x_s) + e_s, \qquad
+\alpha_{o,s} \;=\; \frac{\exp\!\big(\langle h_s, q_o\rangle / \sqrt{H}\big)\, m_s}
+{\sum_{s'} \exp\!\big(\langle h_{s'}, q_o\rangle / \sqrt{H}\big)\, m_{s'}},$$
+
+$$c_o \;=\; \sum_s \alpha_{o,s}\, h_s, \qquad
+\ell_o \;=\; \langle c_o, w_o \rangle + b_o .$$
+
+The masked softmax renormalises over whatever the study actually contains, so a missing
+axial series shifts a diagnosis's attention onto the sequences that are present instead
+of feeding it a zero vector.
+
+**The head is deliberately this small.** Richer aggregations are available — attention
+over every slice group rather than every slot, or a maximum instead of a mean — and they
+are worse. The reason is structural: the label is attached to the *study*, so nothing in
+the supervision says which part of a study carries the finding. Extra attention
+parameters have no signal to learn that from, and spend their capacity on noise instead.
+Where the supervision is coarse, the aggregation should be too.
+
+
+--- [code #29] ---
+class SlotHead(nn.Module):
+    """Per-diagnosis attention over the slot embeddings of one study.
+    Each finding is read on particular sequences - cruciates sagittally, collateral
+
+--- [code #30] ---
+class Model(nn.Module):
+    """Encoder plus head, trained end to end.
+    A study arrives as a bag of slot images. The bag is flattened for the encoder and
+
+--- [md] ---
+### Why the encoder is trained rather than frozen
+
+A frozen self-supervised encoder is the cheap option and it is where this pipeline
+started. It stops paying, and the way it stops is informative: resolution, encoder size,
+slice coverage and slot aggregation were each varied while everything else was held
+fixed, and none of them moved the score beyond what the validation noise allows.
+
+That pattern is diagnostic. Those four axes change how much the model *looks*, how
+closely it looks, and how it summarises what it saw — but none of them changes the
+vocabulary it looks with. When every one of them saturates at the same place, the binding
+constraint is the representation itself. And there is an obvious reason to expect it
+here: the encoder learned its features from natural images, where nothing resembles the
+signal a torn meniscus makes on a proton-density sequence.
+
+So the encoder is adapted, with two restraints.
+
+**Only the last blocks move.** The early blocks of a vision transformer are generic edge
+and texture filters; the late blocks are where semantics live. There is not enough
+supervision here to improve the early ones and quite enough to damage them, so they stay
+frozen and the last few are trained.
+
+**The encoder learns far more slowly than the head.** The head is random at
+initialisation and has everything to learn; the encoder starts from a good solution and
+needs only to be moved off it. A single learning rate would either leave the head
+untrained or destroy the encoder in the first few hundred steps, so the two parameter
+groups get rates two orders of magnitude apart.
+
+Targets remain the report-derived labels of §2, weighted by the extractor's
+per-study confidence, so a study whose report never mentions a finding pulls weakly on
+that output rather than asserting a negative.
+
+
+--- [code #32] ---
+def build_model():
+    """Load the encoder and open the last few blocks for training.
+    Only the last UNFREEZE_LAST blocks and the final norm are trainable. The early
+
+--- [code #33] ---
+def take_group(cache_rows, g):
+    """Slice GROUP consecutive channels out of the cached slices."""
+    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
+
+--- [md] ---
+### The training-side changes
+
+**Augmentation that preserves anatomy.** The previous version flipped vertically. A knee is
+not symmetric about that axis: the femur is above and the tibia below, and `Medial OA`,
+`Lateral OA` and `PF OA` are defined by which bone surface carries the cartilage loss.
+Teaching the encoder to ignore up from down removes information three targets depend on.
+Rotation, scale and translation, all small, leave the anatomy intact while still preventing
+memorisation of the exact framing. Horizontal flip stays forbidden for the reason given in
+§5 — it would undo the laterality normalisation.
+
+**An exponential moving average of the weights.** Both validation references are noisy, and
+picking a single epoch by them is close to picking a neighbour at random. An average over
+the trajectory is more stable than any point on it, and it costs one extra copy of a model
+that is mostly frozen anyway.
+
+**A pairwise ranking term.** The score is an AUC, and AUC counts correctly ordered
+positive–negative pairs. Cross-entropy is a proxy for that, and a reasonable one, but the
+quantity itself can be optimised directly: inside each batch, for each target, take the
+studies whose graded target is confidently positive and confidently negative and push their
+logits apart. Batches are small, so this fires for the common targets and stays silent for
+the rare ones, which is why its weight is small and it supplements the cross-entropy rather
+than replacing it.
+
+--- [code #35] ---
+def augment(imgs):
+    """Small affine and intensity jitter over a whole bag. No flips of either kind.
+    Horizontal flip would undo the laterality normalisation of section 5. Vertical flip
+
+--- [md] ---
+## 7. Validating without fooling yourself
+
+Two leaks are specific to this setup, and both inflate a validation number without
+improving anything.
+
+**Shared reports.** Some reports are byte-identical across studies — a template read for
+an unremarkable knee. Every study in such a group receives the same derived target vector.
+Split the group across folds and the model is scored on a target whose source it has
+already been trained on. Folds are therefore assigned by a hash of the report text, which
+keeps every duplicate group whole inside one fold.
+
+**Two references, two meanings.** Out-of-fold performance is reported twice: against the
+derived targets, which covers every training study and measures whether the imaging model
+learned what the text says; and against the studies with per-condition annotations, which
+is far smaller and measures agreement with a reading of the *images*. The second is the
+one that resembles the test set. The first is the one with enough positives per label to
+distinguish a real difference from noise.
+
+### Choosing which epoch to keep
+
+Having two references makes selection a decision rather than a lookup, and the obvious
+rule — take the best epoch on the larger reference — is wrong. The two measure different
+things, so an epoch that gains on one while losing on the other has not been shown to be
+better; it has been shown to be different. Ranking by
+
+$$\text{score}(e) \;=\; \min\big(\mathrm{AUC}^{\text{derived}}_e,\ \mathrm{AUC}^{\text{annot}}_e\big)$$
+
+refuses that trade: an epoch is only preferred if its *weaker* evidence is stronger than
+every other epoch's weaker evidence. The checkpoint that wins under this rule is the one
+restored before predicting, which also makes the training length a measured quantity
+rather than a hyperparameter guessed in advance.
+
+
+--- [md] ---
+### Two changes to how this is validated
+
+**The annotated reference was scoring studies the model had trained on.** The annotated
+subset is small enough that all of it was previously handed to the epoch-selection rule,
+including the four fifths of it that sat in the training split. An epoch that had begun to
+memorise those studies therefore looked better on the reference meant to detect exactly
+that. Here each fold is scored only on the annotated studies held out of it, and the folds
+together produce one out-of-fold prediction per annotated study, so the final figure covers
+the whole annotated subset without any of it having been trained on by the model that
+predicted it.
+
+**One fold became a cross-validation.** Training a single model on four fifths of the corpus
+wastes the remaining fifth and stakes everything on one trajectory. Each fold now
+contributes a model, and the test predictions are combined as a rank mean per column —
+ranks rather than probabilities, for the reason given in §1.
+
+How many folds actually run is decided by the clock rather than in advance: the first fold
+is timed, and another is started only if the measured time plus a margin still fits inside
+the budget. A submission is written after every fold, so a run that is cut short still
+leaves the ensemble of whatever finished.
+
+--- [code #38] ---
+def write_benchmark_submission():
+    """Write the 0.5 benchmark file immediately.
+    A submission that never writes scores nothing at all. The try/except around main()
+
+--- [code #39] ---
+try:
+    main()
+except Exception:
+
+--- [code #40] ---
+# --- what the run actually did -------------------------------------------------------
+# Reads the globals main() left behind. Safe to run after a partial run; anything the run
+# did not reach is simply skipped.
+
+--- [md] ---
+## Where the next points are
+
+**The silence chart is the work queue.** A target that is silent on a large share of reports
+is one whose training signal is mostly the 0.28 floor, and no amount of encoder capacity
+recovers a label that was never extracted. Read twenty reports in the language with the
+highest silence for the worst target and the missing vocabulary is usually three or four
+stems.
+
+**The annotator's threshold is a target-specific offset, not a global one.** Section 2 grades
+mentions because the reporting radiologist and the annotator disagree about what counts.
+That disagreement is not the same size for every finding — a trace effusion is routinely
+reported and rarely annotated, whereas a fracture is either there or not. The per-target
+agreement chart shows where the mismatch is worst, and the severity cutoffs in `_severity`
+are the knob for it.
+
+**Resolution is the untested axis.** The physical-scale argument in §4 fixes mm per pixel at
+`CROP_MM / IMG`. Both terms are free: a tighter crop at the same grid, or the same crop on a
+finer grid, each buy resolution where the meniscus is. The cache is quadratic in `IMG` and
+linear in slices, so the trade is against slice coverage, and the budget planner already
+makes that trade explicit.
+
+**A second encoder would ensemble well.** The folds currently differ only by their data
+split. Swapping the backbone for one fold — a larger DINOv2, or a supervised ImageNet
+transformer — decorrelates the errors far more than a different split does, and the rank
+mean already in place is the right way to combine them.
+
+**What not to spend time on.** Calibration, thresholds, and class rebalancing: §1 rules all
+three out. And no horizontal or vertical flip anywhere — the first undoes the laterality
+normalisation, the second exchanges the femur with the tibia.
+
+==============================================================================
+NOTEBOOK: rsna-knee-read-the-report-then-the-knee
+==============================================================================
+
+--- [md] ---
+# Twelve findings, fifty-eight labels, four thousand reports
+
+A knee MRI study here has to be given twelve probabilities — anterior cruciate and medial
+collateral ligament injury, medial and lateral meniscal tear, osteoarthritis in each of
+the three compartments, effusion, synovitis, Baker's cyst, bone contusion, fracture — and
+the score is the unweighted mean of the twelve ROC AUCs.
+
+The decisive fact about this dataset is not in the images. It is in `train.csv`:
+
+| | studies | carry the twelve labels | carry a radiology report |
+|---|---|---|---|
+| train | 4 407 | **58** | 4 407 |
+| test | — | — | **none — there is no `Report` column** |
+
+Fifty-eight labelled studies cannot train an imaging model, and the reports that could
+supply the missing four thousand are unavailable at prediction time. So the pipeline is
+forced into one shape: **read the reports into targets, fit a pure imaging model against
+them, and throw the text away.** Everything downstream — which slices to decode, how large
+to make them, which encoder to adapt — is bounded by how well that first step is done.
+
+This notebook is organised in the order the decisions constrain each other.
+
+1. What the score rewards, and what that removes from the design.
+2. Where the targets come from — a nine-language report reader, and the two ways to tell
+   whether it works when only 58 studies can check it.
+3. What the scanner recorded — recovering the acquisition protocol from DICOM headers.
+4. Geometry — slice order, physical scale, and which knee was scanned.
+5. Reading the pixels once.
+6. Turning six views into twelve decisions.
+7. Validating without fooling yourself.
+8. Three arms, combined the only way the metric permits.
+
+Every number quoted below is computed by the cell above it. Nothing is asserted that the
+notebook does not measure.
+
+--- [md] ---
+## 1. What the score rewards
+
+$$\text{Score} \;=\; \frac{1}{12}\sum_{i=0}^{11} \mathrm{AUC}_i$$
+
+Three consequences follow directly, and each one removes a design choice rather than
+adding one.
+
+**Only order matters.** $\mathrm{AUC}_i$ is invariant under any strictly increasing map of
+the scores for label $i$. Calibration is worth nothing here, and so is any fixed
+threshold. It also settles how to combine models: averaging raw probabilities lets
+whichever arm happens to be most confident dominate, while averaging *ranks* combines the
+only information the metric reads. Every combination in §8 is a rank mean.
+
+**Every label costs the same.** Write $M$ for the mean AUC a good model reaches. A label
+left at chance contributes $0.5$ instead of roughly $M$, forfeiting
+
+$$\frac{M-0.5}{12}$$
+
+no matter how well the other eleven do. At $M=0.85$ that is $0.029$ — larger than the gap
+between neighbouring places on a mature leaderboard. So a rare finding deserves *more*
+attention than a common one, because a rare finding is where a model most easily ends up
+at chance. That is why §2 spends its effort on the findings the reports mention least,
+not on the ones they mention most.
+
+**Prevalence drift is survivable; thresholds are not.** AUC is, in expectation, invariant
+to the positive rate, and the data description warns that prevalence need not match across
+the training, public and private sets. That would be fatal for an accuracy-like metric. It
+is not fatal here — but it does mean one cut has to be named and watched. The report-derived
+targets below are graded, not binary; to compute an AUC against them at all they are
+binarised at their midpoint for validation only. That cut chooses epochs and arms. It never
+reaches a submitted score.
+
+--- [md] ---
+## 2. Where the targets come from
+
+Every training study carries the radiology report written when it was read, and the data
+description invites deriving labels from it. The structural fact that decides how is in the
+schemas rather than in the prose: `train.csv` has a `Report` column and `test.csv` does
+not. Text is available when fitting and absent when predicting. That rules out a fusion
+model with a text branch — at inference it would have nothing to read — and leaves the
+reports doing two jobs:
+
+1. supplying the training targets, and
+2. saying how confidently each one could be read, which becomes a per-finding sample
+   weight.
+
+Both matter. A study whose report never mentions synovitis should pull on the synovitis
+head far more weakly than one that names it, and a loss that cannot express that trains
+every silence as a confident negative.
+
+### Nine languages, one lexicon
+
+The corpus is written in nine languages across three scripts. The extractor is built here
+in-line rather than attached as a file, for two reasons: it runs over the whole corpus in
+seconds, so there is nothing to save by precomputing; and a notebook that ships its own
+labels cannot quietly train against a stale copy of them.
+
+**No language is identified.** Every cue list below carries all nine at once and each
+clause is tested against the union. Routing first would mean committing to a guess before
+any evidence is read, and the cheap guess fails badly here — `la` is as common in Spanish
+as in French, and whichever substring test runs first swallows both. Pooling costs little
+in exchange: Greek and Cyrillic cues cannot collide with Latin-script ones at all, and
+among the Latin-script languages the vocabulary of interest is close enough that a shared
+cue is usually right. The price is paid in coverage instead — a phrasing no listed language
+contributes stays unmatched — and coverage is the thing §2.2 measures.
+
+**Normalise, then unwrap, then segment, then scope.** Case, diacritics and separators are
+folded first, which also repairs a real codepoint problem: many Greek reports spell mu with
+the MICRO SIGN `U+00B5` rather than `U+03BC`, and NFKD maps one onto the other. Then the
+lines are unwrapped — see below — then split into clauses, with a heading line attached to
+the value beneath it, because a report that reads `Fractures :` and then `Aucune.` states
+one thing across two lines.
+
+**Assertion, negation, hedge.** Negation is not an edge case here. For several findings
+*most* mentions are negative, because a report lists what was checked and found intact.
+Explicit normality counts as absence — *ligamentos cruzados y colaterales dentro de límites
+normales* is evidence of absence, not absence of evidence — except where a tear or a high
+grade is named in the same breath.
+
+**Grade, do not threshold.** §1 established that only order is read. So a mention is scored
+by its emphasis — trace, unqualified, marked — and never binarised.
+
+--- [code #3] ---
+"""Report -> twelve graded targets, in nine languages.
+v2. Differences from the public lexicon are all coverage: the compartment scoping for
+osteoarthritis, the pathology vocabulary for cartilage, an asserted-negative path for
+
+--- [md] ---
+### 2.1 Four rules that are not obvious
+
+Most of a lexicon is vocabulary, and vocabulary is dull work that pays. Four rules are not
+vocabulary, and each of them fixes an error that a term list cannot reach. All four are
+behind flags in `FEATURES`, and §2.2 turns them off one at a time and re-measures.
+
+**Unwrap before splitting.** A large share of these reports arrive hard-wrapped at a fixed
+column, so a sentence is broken across two lines with no punctuation at the break.
+Splitting on newlines then severs a finding from its anatomy:
+
+> `Rotura compleja degenerativa del cuerno anterior, cuerpo, cuerno posterior y parte de la raíz`
+> `meniscal posterior del menisco lateral con extrusión asociada.`
+
+The first line says *tear* and names no structure; the second names the lateral meniscus
+and says nothing about a tear. Neither clause carries a finding on its own, and the study
+comes out silent on a meniscus that the report describes as complexly torn. A line that
+does not end in sentence punctuation is a continuation, not a statement.
+
+**Scope negation by direction, and anchor it on the pathology word.** Read at clause scope,
+
+> `Subchondral insufficiency fracture at the medial tibial plateau without articular surface collapse.`
+
+is a denial: it contains *without*. It is in fact an assertion — *without* governs what
+follows it, and the fracture precedes it. This is the house style of one of the larger
+reporting sites in this corpus, so the error is systematic rather than occasional, and it
+falls on `Fracture`, one of the rarest targets. Direction alone is not enough either. In
+
+> `Medial meniscus is not torn.`
+
+the negator stands *after* the noun and before the verb, so scoping the test from the
+anatomy match reads the sentence as an assertion. The negator governs the finding, so the
+test is anchored on the pathology word — *torn* — not on *meniscus*.
+
+**Let an unlocalised cartilage statement reach all three compartments.** Osteoarthritis is
+rarely written as "osteoarthritis". It is written as cartilage loss, chondrosis, a
+chondromalacia grade, joint space narrowing, or osteophytes — and often without naming a
+compartment at all. `Tricompartmental osteoarthritis`, `gonarthrose`, `Incipient OA of all
+three compartmens` are the house styles, not `chondropathy of the medial femorotibial
+compartment`. A rule that requires a compartment phrase before it will fire leaves three
+quarters of the corpus silent on the three OA targets. So a cartilage statement is
+attributed by what else its clause names — *medial* next to a tibiofemoral structure sends
+it to the medial compartment, *patella* or *trochlea* to the patellofemoral one — and a
+statement that localises to nothing counts for all three at a discount, unless that
+compartment was separately and explicitly cleared.
+
+**Read numeric grades on the right scale.** A grade is the most precise thing a knee report
+says, and it means opposite things in different places. Grade 3 of a *meniscus* is signal
+reaching the articular surface, which is a tear by definition; grades 1 and 2 are
+intrasubstance change that is not. A *ligament* runs the other way — grade 1 is a stretch,
+grade 2 a partial tear. Folding both into one pathology vocabulary scores a degenerate
+meniscus like a torn one and throws away the ordering the metric is built on.
+
+--- [code #5] ---
+# --------------------------------------------------------------------------- #
+# pathology vocabulary
+# --------------------------------------------------------------------------- #
+
+--- [code #6] ---
+def _near(clause: str, stem_rx: re.Pattern, qual_rx: re.Pattern, window: int = 55):
+    for m in stem_rx.finditer(clause):
+        lo = max(0, m.start() - window)
+
+--- [md] ---
+### 2.2 How an extractor like this is validated
+
+This is the part that decides whether any of the above is worth trusting, and it is harder
+than writing the rules, because the obvious measurement cannot carry the weight.
+
+**The dangerous failure is silent.** A rule that never fires does not raise an error — it
+emits a negative, indistinguishable from a confident one. A lexicon complete in English and
+thin in Greek does not look broken; it looks like a corpus in which Greek patients have
+fewer findings. And the error is not random: language tracks the reporting institution,
+which tracks the scanner and the population, so a gap in one language is a bias aligned with
+a site, not noise that averages out.
+
+**Gauge one — agreement, on the 58 annotated studies.** For each target, compare the
+extracted score against the annotation and read the AUC. This measures exactly the right
+thing and is nearly useless for tuning, because the subset is tiny. The Hanley–McNeil
+approximation for the standard error of an AUC $A$ with $n_p$ positives and $n_n$ negatives,
+
+$$\mathrm{SE}(A)=\sqrt{\frac{A(1-A)+(n_p-1)(Q_1-A^{2})+(n_n-1)(Q_2-A^{2})}{n_p n_n}},\qquad
+Q_1=\frac{A}{2-A},\quad Q_2=\frac{2A^{2}}{1+A},$$
+
+at $A\approx0.85$ with nine positives among 58 studies lands near $0.083$, so a 95% interval
+spans roughly $\pm0.16$. Competitions are decided by differences an order of magnitude
+smaller. Choosing between two lexicons on a single one of these numbers is choosing by coin
+flip, and it will feel like signal every time. The intervals are drawn below so that this
+is visible rather than stated.
+
+**Gauge two — coverage, on all 4 407 reports.** For each (study, target) pair, record
+whether *any* rule fired — assertion, negation or hedge. The **silence rate** is the fraction
+where none did. It needs no labels, so it runs on the whole corpus rather than on the
+annotated handful, and it points straight at missing vocabulary.
+
+| | measures | sample | can decide |
+|---|---|---|---|
+| agreement | is a fired rule *right* | 58 | whether a target's labels are usable at all |
+| silence | does a rule *fire* | 4 407 | which finding to work on next |
+
+Neither substitutes for the other, and the second is the one to steer by. A common finding
+that is silent in one language and not another is a lexicon gap. A rare finding that is
+silent nearly everywhere is simply rare, and silence there is correct.
+
+**One limit worth naming.** The 58 annotations were read from the images; the reports were
+written by a different radiologist on a different day. They disagree — a report saying
+*moderate joint effusion* against an annotation of 0, an annotation of Baker's cyst against
+a report that calls the study normal. That disagreement is not extractor error and no
+lexicon can remove it. It puts a ceiling on gauge one somewhere well below 1.0, which is
+another reason to read the intervals rather than the point estimates.
+
+--- [code #8] ---
+import os
+import time
+import warnings
+
+--- [code #9] ---
+import matplotlib.pyplot as plt
+from sklearn.metrics import roc_auc_score
+plt.rcParams.update({"figure.dpi": 120, "font.size": 8, "axes.grid": True,
+
+--- [code #10] ---
+def macro_and_silence():
+    lab = pd.DataFrame([extract(r) for r in train_df["Report"].fillna("")])
+    lab["StudyInstanceUID"] = train_df["StudyInstanceUID"].values
+
+--- [md] ---
+Read that table against §2.2 rather than as a ranking. Three of the five deltas are smaller
+than the sampling error of a 58-study AUC, so the honest reading is:
+
+* **`oa_inherit` is the one change large enough to see on gauge one.** It is also the one
+  whose effect is visible on gauge two, and the two agree in direction. That is the only
+  combination that justifies confidence at this sample size.
+* **`unwrap` barely moves agreement and clearly improves coverage.** Kept for the second
+  reason. Wrapped lines are a property of how a site exports its reports, not of what those
+  reports say, and a rule that repairs the export cannot be wrong about the medicine.
+* The rest are kept because the sentence-level argument for them is sound and their
+  measured effect is not negative — not because 58 studies said so.
+
+Most of the total quality of these labels is not in this table at all: it is in the
+vocabulary, and vocabulary shows up on the silence rate rather than on the ablation. The
+findings the reports mention least are the ones §1 says are most expensive to leave at
+chance, and they are exactly where the silence bars are tallest — `Fracture`,
+`Lateral OA`, `Synovitis`. That is the standing to-do list for this notebook, and it is
+readable from a gauge that needs no labels at all.
+
+Two further points about the targets before moving to the pixels.
+
+**Confidence becomes a sample weight.** Every target carries a confidence alongside its
+score: high when several clauses agree, low when a finding was named once in passing, and
+very low when nothing fired. That number multiplies the per-element loss in §7, so silence
+pulls weakly rather than asserting a negative.
+
+**Synovitis is a special case, handled explicitly.** Nearly nine studies in ten never use
+the word, and the annotator marks it on close to half. No term list can close that. What a
+report does say is whether the joint is wet and irritated — an effusion, a distended bursa,
+an inflamed fat pad — and on the silent majority that ordering is the only signal there is.
+It enters at low confidence, so it shapes the ranking without asserting a finding. This is
+the weakest of the twelve target derivations and the notebook says so rather than hiding it
+in an average.
+
+--- [md] ---
+### 2.3 Reading the coverage gauge, which is the point of having it
+
+The silence rate is only useful if it is broken down. Aggregated over the corpus it says
+"this target is thin", which anyone could have guessed. Broken down by language it says
+*where the vocabulary is missing*, and that is a to-do list.
+
+The two figures below are the ones that actually drove the last several revisions of the
+lexicon, so it is worth being precise about how to read them — including the way the left
+one can mislead.
+
+**Silence has two causes, and only one of them is a bug.** A target is silent either
+because the report never discusses that structure, or because it does and no rule fired.
+The first is correct behaviour and no amount of vocabulary fixes it; the second is a gap.
+They look identical in the left figure and are separated in the right one, by asking a
+question that needs no labels: does the report contain *any* word for this structure at
+all?
+
+For the Spanish cruciate cell that split came out 62% never-mentioned against 38%
+mentioned-and-missed. The 62% are short reports — a median of 336 characters against 1257
+for the ones that do mention it — stating findings and staying silent on everything
+normal. Nothing there to fix. The 38% were a genuine gap, and reading a handful of them
+showed what it was:
+
+> `Ligamentos cruzados y colaterales sin alteraciones significativas.`
+
+That asserts the cruciates are *normal*. The extractor missed it, because "sin
+alteraciones" is a negator plus an abnormality noun — read literally it is a negation, not
+a normality phrase, and the rule that recognised normality explicitly refused to fire when
+a negator was present. So a ligament a radiologist had looked at and called intact was
+scored the same as one the report never mentioned. To a rank metric those are not the
+same: explicitly clear must rank *below* unmentioned.
+
+That construction is how most of these languages assert normality — `ohne
+Auffälligkeiten`, `geen afwijkingen`, `bez osobitosti`, `χωρίς αλλοιώσεις`, `без
+особености` — and adding it dropped the mean silence over all 4 407 studies and twelve
+targets from 49.97% to 48.09%, concentrated exactly where predicted: Greek −15 points on
+the ligament and meniscus targets, Spanish −6, Bulgarian/Russian −4, Turkish and Croatian
+unchanged because they were already covered by a different construction.
+
+That cell is now essentially closed. Spanish studies silent on the cruciate fell from 215
+to 141, and of the 141 that remain, **5%** name a cruciate at all — a median report length
+of 230 characters says the rest simply do not discuss it. The work moved from the
+fixable half of the bar to the half that is not a bug.
+
+The same figure then pointed at Dutch, where `normaal voorkomen menisci` — the bare plural,
+naming no side — left both meniscal targets silent. The cruciates and the collaterals had
+their plural forms from the start; the menisci had simply been missed.
+
+**What gauge one said about all of this: nothing.** Agreement on the 58 annotated studies
+moved by −0.0007 macro AUC, 95% CI [−0.0035, +0.0009] — a flat zero. That is not evidence
+the change was worthless. It is evidence that 58 studies, most of them English, cannot see
+a Greek and Spanish coverage fix at all. Steering by that number would have rejected the
+work; steering by the gauge that runs on all 4 407 found it.
+
+--- [code #13] ---
+_SCRIPT = {"el": re.compile(r"[Ͱ-Ͽ]"), "bg/ru": re.compile(r"[Ѐ-ӿ]")}
+_STOP = {
+    "en": r"\b(the|and|is|with|there is|normal)\b",
+
+--- [md] ---
+## 3. What the scanner recorded
+
+`train_series.csv` describes each series with three flags — `Anatomical_Plane`,
+`Fluid_Sensitive`, `Fat_Suppression`. A study holds several series and the twelve findings
+are not read on the same ones: cruciates sagittally, the collateral ligaments and the
+meniscal body coronally, patellar cartilage axially, and anything involving fluid on a
+fat-suppressed fluid-sensitive sequence, where marrow oedema and effusion light up and fat
+does not.
+
+So a study is not a stack of images. It is a **bag of up to six slots**, one per
+(plane × contrast) combination, with a mask saying which of them this study actually has.
+The mask is not a formality: the fat-suppressed fluid-sensitive series exist for nearly
+every study, while T1 and non-suppressed series are far scarcer, and a model that averaged
+over missing slots would be averaging over zeros.
+
+The flags in the CSV are recovered again from the DICOM headers rather than taken as given,
+for one specific reason: two axes are collapsed into one flag. `Fluid_Sensitive = 0`
+covers both T1 and non-fat-suppressed proton-density series, which carry very different
+tissue contrast. Reading `SeriesDescription`, `ScanningSequence`, `RepetitionTime` and
+`EchoTime` separates them, and the header pass is needed anyway for pixel spacing and
+laterality. Both slot schemes are kept below as a switch, so the choice can be varied with
+everything else held fixed.
+
+One header trap is worth naming because it is silent: GE writes `SAT_GEMS` into
+`ScanOptions` for *spatial* saturation. A substring test for `SAT` marks those series
+fat-suppressed when they are not, so `ScanOptions` is matched as exact tokens.
+
+--- [code #15] ---
+import gc
+import re as _re
+from concurrent.futures import ThreadPoolExecutor
+
+--- [md] ---
+> ### An aside that will cost someone else a day
+>
+> If a GPU notebook in this competition trains fine locally and then dies with
+>
+> ```
+> CUDA error: no kernel image is available for execution on the device
+> ```
+>
+> the accelerator is the problem, not the code. Kaggle's generic **GPU** setting can
+> allocate either a T4 or a **P100**, and the P100 is Pascal — compute capability 6.0. The
+> current container ships PyTorch 2.10, and that build's kernels are compiled for:
+>
+> ```
+> ['sm_70', 'sm_75', 'sm_80', 'sm_86', 'sm_90', 'sm_100', 'sm_120']
+> ```
+>
+> There is no `sm_60` in that list, so nothing Pascal can run at all.
+>
+> What makes it expensive is that every check you would think to make passes.
+> `torch.cuda.is_available()` is `True`, the device name and capability query fine, tensors
+> allocate, and a model moves onto the device without a murmur. Only the **first kernel
+> launch** fails — which, in a pipeline like this one, is after the header pass and the
+> full decode. That cost this notebook 56 minutes and an entire run before anything
+> trained.
+>
+> Two lines of defence, both cheap:
+>
+> 1. **Pin the accelerator to T4 x2** in the notebook settings rather than leaving it on
+>    the generic GPU option.
+> 2. **Launch a real kernel during setup**, before anything expensive — the `gpu_probe()`
+>    in the configuration cell above does a 64×64 matmul and reports what it found. A
+>    property query is not enough; the failure only appears when a kernel actually runs.
+
+--- [code #17] ---
+HDR_TAGS = ["SeriesDescription", "SequenceName", "ScanOptions", "ScanningSequence",
+            "RepetitionTime", "EchoTime", "Laterality", "PixelSpacing", "Rows",
+            "Columns"]
+
+--- [code #18] ---
+if STAGE_OK.get("headers"):
+    fig, ax = plt.subplots(1, 3, figsize=(11.5, 3.2),
+                           gridspec_kw={"width_ratios": [1.1, 1, 1]})
+
+--- [md] ---
+## 4. Geometry: order, scale, and which knee
+
+Three things about the pixels have to be fixed before an encoder sees them, and each one
+is a nuisance axis the model cannot observe for itself.
+
+**Slice order.** A DICOM file name here is a SOP Instance UID, assigned arbitrarily.
+Sorting by it produces an order uncorrelated with anatomy, and anything downstream that
+assumes the file order means something is then operating on noise: the three channels of a
+"2.5D" input become three unrelated views, "the middle of the stack" becomes a random
+subset, and reversing slice order to normalise laterality reverses nothing.
+
+The physical order is recoverable exactly. Each slice carries its position in patient
+coordinates and the in-plane axes, so projecting the position onto the slice normal gives a
+signed through-plane coordinate that is monotonic along the stack:
+
+$$\mathbf{n} = \mathbf{r}_x \times \mathbf{r}_y, \qquad k = \mathbf{p}\cdot\mathbf{n}.$$
+
+`InstanceNumber` is the fallback, but only that: interleaved and multi-echo acquisitions
+need not number slices in the order they occupy in space, and the number is unsigned, while
+the projection is signed in patient coordinates — which is what laterality normalisation
+needs.
+
+**Physical scale.** Pixel spacing varies several-fold across this corpus, so a fixed pixel
+resize hands the encoder the same anatomy at different sizes. Cropping a constant physical
+extent first and resizing after makes one millimetre the same number of pixels in every
+study. The crop must be smaller than the smallest field of view or it silently does nothing
+— the histogram above is what sets it.
+
+**Which knee.** Four of the twelve targets — the two menisci, the medial and lateral
+compartments — are medial/lateral pairs, and medial is defined relative to the body's
+midline. Unless laterality is normalised, those four labels are asking the model to learn
+from an axis it cannot see. The correction differs by plane, because the mirror acts on a
+different image axis:
+
+* **Coronal and axial** — the medial-lateral direction lies in the image plane, so a left
+  knee is the horizontal mirror of a right knee. Flip the last axis.
+* **Sagittal** — the medial-lateral direction is the *slice* axis. Each individual slice is
+  unchanged by mirroring; what differs is the direction in which the stack traverses the
+  joint. Reverse the slice order, not the pixels.
+
+Where `Laterality` is absent the volume is left alone, because a wrong flip is worse than
+no flip. Those studies keep an unresolved side axis, and the cost falls on the four
+side-specific targets as diluted supervision rather than as a corrupted input.
+
+--- [code #20] ---
+ORDER_TAGS = [(0x0020, 0x0032), (0x0020, 0x0037), (0x0020, 0x0013)]
+def order_slices(rec):
+    """Return the series' files sorted along the through-plane axis."""
+
+--- [md] ---
+## 5. Reading once, training many times
+
+The cost of this pipeline is dominated by reading, not by arithmetic. A study holds several
+series and each series holds tens of slices, so the corpus is hundreds of thousands of
+header reads and, once the slices are chosen, tens of thousands of pixel decodes.
+
+That is affordable once. It is not affordable once per epoch, and fine-tuning needs the
+same pixels every epoch. So the slot images are decoded a single time into memory and held
+as `uint8`:
+
+$$\text{bytes} \;=\; N_{\text{study}} \times N_{\text{slot}} \times S \times P^{2}$$
+
+with $S$ slices kept per slot at $P$ pixels. The exponent on $P$ is what makes this a real
+constraint rather than a detail — **the cache grows with the square of resolution and only
+linearly with slices**. Coverage is the cheap axis; resolution is the expensive one.
+
+That asymmetry decides the one genuinely open trade in the design. A knee sagittal stack
+holds tens of slices and the cruciate is visible on a handful of them, so three slices
+spread over the central 60% of the stack is a thin sample of the joint — but a coarser
+pixel grid blurs a meniscal tear, which is about a millimetre across, and a feature of
+width $d$ survives resampling only if the pitch is at most $d/2$. At a 130 mm crop:
+
+| grid | mm / pixel | clears a 1 mm feature? | cache at 6 slices |
+|---|---|---|---|
+| 224 | 0.580 | no | 7.4 GiB |
+| 266 | 0.489 | yes | 10.5 GiB |
+| 336 | 0.387 | comfortably | 16.7 GiB |
+
+That table is where an earlier version of this notebook stopped, having chosen 266 px on
+the Nyquist argument and accepted the thinner sample of the joint that came with it. Then
+the argument was tested: two arms, same encoder, same slices, 224 px against 266 px. They
+separated by about a **thousandth** of macro AUC — twice, on two independent runs. Nyquist
+is right about what survives resampling and wrong about what limits this model.
+
+So the trade is settled the other way, on evidence rather than on the inequality. The cache
+is built at **224 px** and holds **four** groups of three slices — twelve per slot, four
+times the previous coverage, at 14.8 GiB, for the same money. §8 then spends two arms
+measuring whether that coverage was worth buying, which costs nothing extra because both
+arms read the same cache.
+
+### The size of that table is not known in advance
+
+Submitting to a code competition re-runs this notebook against a hidden test set, and
+`test.csv` as shipped holds three placeholder studies. A cache sized against those three
+would be sized wrong by orders of magnitude on the run that actually scores. Worse, the
+failure mode is not a degraded number: exhausting memory is a `SIGKILL`, which no
+`try`/`except` in this notebook can catch, and it produces no submission at all.
+
+So the layout is planned at run time, from the study count actually mounted and from the
+memory the kernel actually reports free — not from a constant chosen on a laptop. When the
+budget binds, the two axes give way in a fixed order, and the order follows from §5's
+argument rather than from convenience:
+
+1. **Coverage first.** Two groups of slices drop to one. The sample of the joint gets
+   thinner, which degrades smoothly.
+2. **Resolution last, and only if a single group still will not fit.** The pixel grid has a
+   hard threshold under it, so it is the thing worth defending; it steps down in multiples
+   of 14 to keep the patch tokenisation exact.
+
+If the grid does shrink, the arms in §8 shrink with it rather than upsampling cached pixels
+back to a size that no longer carries the detail — and two arms that collapse onto the same
+(encoder, grid) are not run twice.
+
+Training draws one group per step, which acts as augmentation along the stack. Inference
+averages the logits over both, so a prediction does not depend on which three slices a
+single draw happened to pick.
+
+--- [code #22] ---
+RESERVE_GB = 7.0    # torch, the CUDA context, the frames, and the per-batch host copies
+def available_gb():
+    """Free memory as the kernel reports it, not as the documentation promises."""
+
+--- [code #23] ---
+if STAGE_OK.get("cache") and len(ST_TR):
+    # A study with as many slots as possible, so the figure shows what the head is given.
+    j = int(np.argmax(MTR.sum(1)))
+
+--- [md] ---
+## 6. Six views into twelve decisions
+
+A study arrives as up to six slot embeddings $x_s \in \mathbb{R}^{d}$ with a presence mask
+$m_s \in \{0,1\}$. Pooling them identically would discard the reason the protocol has three
+planes at all: each finding is read on particular sequences, and a mean over slots dilutes
+the one that carries the evidence with five that do not.
+
+So each diagnosis $o$ gets its own query $q_o$ and attends over the slots it needs:
+
+$$h_s = \mathrm{GELU}(W\,\mathrm{LN}(x_s)) + e_s,\qquad
+\alpha_{os} = \frac{\exp\!\big(q_o^{\top}h_s/\sqrt{d_h}\big)\,m_s}
+{\sum_{s'} \exp\!\big(q_o^{\top}h_{s'}/\sqrt{d_h}\big)\,m_{s'}},\qquad
+z_o = w_o^{\top}\!\!\sum_s \alpha_{os} h_s + b_o$$
+
+where $e_s$ is a learned slot identity, so the query knows a coronal fat-suppressed series
+from a sagittal T1. Missing slots are masked out of the softmax rather than zero-filled —
+attention over a zero vector is still attention, and it would let an absent sequence dilute
+a present one.
+
+The aggregation is deliberately no deeper than this. The label is attached to the *study*,
+so nothing in the supervision says which slice or which region within a slot matters;
+attention parameters below the slot level would have nothing to learn from and would spend
+their capacity fitting noise.
+
+### Why the encoder is trained rather than frozen
+
+A frozen self-supervised encoder is the cheap option and it is bounded by something no
+amount of work downstream can reach. Resolution, encoder size, slice coverage and slot
+aggregation all change how much the model looks, how closely, and how it summarises what it
+saw — but none of them changes the vocabulary it looks *with*. Every one of those axes runs
+into the same ceiling, and the ceiling is the representation.
+
+There is a concrete reason to expect that ceiling to bind here rather than sit harmlessly
+high: DINOv2 learned its features from natural images, where nothing resembles the signal a
+torn meniscus makes on a proton-density sequence.
+
+So the encoder is adapted, under two restraints.
+
+**Only the last blocks move.** The early blocks of a vision transformer are generic edge and
+texture filters; the late blocks are where semantics live. There may not be enough
+supervision here to improve the early ones, and there is certainly enough to damage them.
+
+**The encoder learns two orders of magnitude more slowly than the head.** The head is random
+at initialisation and has everything to learn; the encoder starts from a good solution and
+needs only to be moved off it. A single learning rate would either leave the head untrained
+or destroy the encoder in the first few hundred steps.
+
+--- [code #25] ---
+class SlotHead(nn.Module):
+    """Per-diagnosis attention over the slot embeddings of one study."""
+    def __init__(self, dim, n_slot, n_out, hidden=256, p=0.2):
+
+--- [md] ---
+## 7. Validating without fooling yourself
+
+Two leaks are specific to this setup, and both inflate a holdout number without improving
+anything that will be scored.
+
+**Identical reports across studies.** Some reports in this corpus are byte-identical between
+studies — short template reports, and at least one study filed with two reports. A
+report-derived target vector is a deterministic function of its text, so splitting such a
+group across the train/holdout boundary scores the model against a target whose *source* it
+has already fitted. The split is therefore grouped on a hash of the report text, not on the
+study identifier.
+
+**The annotated studies.** The 58 annotations are the only labels in this dataset read from
+the images rather than from prose, so they are the most trustworthy check available — and
+they are also, at triple weight, the most valuable training rows. Keeping them for training
+and then evaluating on all of them would be scoring the model against examples it has seen
+with the answer attached. So they stay in training, and the annotation check reports only
+the handful that happen to fall in the holdout. That number is quoted with its count
+attached, because a dozen studies cannot arbitrate between epochs.
+
+**What actually selects.** The holdout is the report-derived targets, binarised at their
+midpoint. It is a proxy for a proxy, and it is what chooses the epoch and the arm — there is
+nothing better available at this sample size. The annotation check is reported alongside
+because it measures something genuinely different, not because it can decide anything.
+
+The loss is a weighted binary cross-entropy over the twelve outputs,
+
+$$\mathcal{L} = \frac{1}{12B}\sum_{b}\sum_{o} w_{bo}\;
+\mathrm{BCE}\big(z_{bo},\,y_{bo}\big),$$
+
+with $y$ the graded report target in $(0,1)$ — not a hard label — and $w$ the per-finding
+confidence from §2, rescaled to $[0.25, 1]$, with the annotated rows at 3. A study whose
+report never mentions synovitis contributes to the synovitis head at a quarter of the
+weight of one that names it.
+
+--- [code #27] ---
+import hashlib
+@stage("targets")
+def _targets():
+
+--- [md] ---
+## 8. Five arms, two controlled comparisons, and how they are combined
+
+§1 established that the metric reads order and nothing else. That decides how to combine
+models: averaging probabilities lets the more confident arm dominate whatever its ranking
+is worth, while averaging **per-column ranks** combines exactly what the score reads. Every
+file written below is converted to percentile ranks first.
+
+Five arms, all reading the same cache:
+
+| arm | encoder | slices / slot | what it varies |
+|---|---|---|---|
+| `s168g4` | DINOv2-S/14 | 12 | the **resolution safety check** — see below |
+| `s168g8` | DINOv2-S/14 | 24 | **coverage** |
+| `b168g8` | DINOv2-B/14 | 24 | encoder capacity |
+| `b168g8b` | DINOv2-B/14 | 24 | seed only |
+| `b168g8c` | DINOv2-B/14 | 24 | seed only |
+
+**The safety check matters more than the experiment.** The previous version measured a
+coverage curve at 224 px — 3, 6 and 12 slices scoring 0.7536, 0.7726, 0.7866 — which was
+still climbing when it ran out of memory. Buying more slices means paying in pixels, and
+the evidence that pixels are free stops at 224: resolution was tested at 224 against 266
+and made no difference, but nothing has ever been measured *below* 224, and somewhere
+there is a floor.
+
+So `s168g4` holds slices at 12 and only drops the grid. It is directly comparable with the
+previous version's `s224g4` (0.7866, same encoder, same slices, same epochs, same seed).
+If it lands there, the coarser grid is free and the extra slices are pure gain. If it
+drops, the floor has been found — and that is worth knowing and reporting either way,
+because it bounds how far this trade can be pushed by anyone who continues it.
+
+### Why the coverage comparison is free
+
+`s168g4` and `s168g8` differ in nothing but how many of the cached slice groups each may
+draw from during training and average over at inference — same encoder, same grid, same
+cache, same initialisation, and **the same cost per epoch**, because training draws one
+group per step either way. Only the evaluation passes cost more. That is what makes it
+affordable to keep measuring this rather than assuming it, and it is why the notebook has
+a coverage curve at all instead of a preference.
+
+A DINOv2-**large** arm was also tried and is not here: it scored below `base` on the
+holdout while costing two and a half hours, so capacity is not monotonic on this corpus.
+Once coverage was corrected, capacity stopped separating the arms at all — `small` and
+`base` landed within a thousandth of each other at twelve slices. Reporting that is more
+useful than quietly dropping it.
+
+### Mean or max over the slice groups, decided per finding
+
+An arm with eight groups produces eight logits per target and has to reduce them to one.
+Averaging is the obvious choice and it is wrong for half the targets, for a reason that is
+anatomical rather than statistical.
+
+A meniscal tear, a fracture, a bone contusion are **focal**: they occupy a few slices, so
+the groups that cross them see them and the rest see nothing. Averaging eight groups then
+divides the evidence by eight, and does so most severely for exactly the small, rare
+findings §1 says are most expensive to lose. An effusion, tricompartmental cartilage loss,
+a large Baker's cyst are **diffuse**: every group sees them, the eight logits are estimates
+of the same quantity, and the mean is the better estimator while the max is just whichever
+group was noisiest.
+
+So both reductions are computed — from the same forward passes, at no extra cost — and the
+choice is made per target on the holdout. Twelve binary decisions fitted on roughly nine
+hundred studies is a real but small amount of freedom, and the arms print which targets
+chose the max, so the pattern can be checked against the anatomy rather than taken on
+trust. If it does not look like the focal/diffuse split above, it is fitting noise.
+
+With a single group mean and max coincide and the choice is a no-op, which is what made
+the 3-slice control in the previous version clean.
+
+### Which arms actually get averaged
+
+An equal-weight mean over every arm assumes every arm deserves an equal vote — an
+assumption this notebook tested and watched fail. So the arms that enter the submission
+are chosen by greedy forward selection *with replacement* on the holdout: at each step,
+add whichever arm most improves the macro AUC of the running rank mean, stop when nothing
+improves it by more than $10^{-4}$. Selection with replacement is what turns this from a
+filter into a weighting — an arm picked twice is an arm weighted twice — and a weak arm is
+simply never picked.
+
+That selection reads the same report-derived holdout that chose the epochs, so it can
+overfit it. With five candidates and roughly nine hundred studies the risk is small but
+real, which is why the equal-weight mean over all arms is written alongside as
+`submission_equalweight.csv` and both numbers are printed. If they disagree by more than
+the holdout can resolve, believe neither.
+
+Arms run cheapest-first, each checks the remaining wall clock before starting, and the
+submission is rewritten after every one — so a run cut short by the nine-hour limit still
+leaves the best file it had time to earn.
+
+--- [code #29] ---
+def write_submission(pred, studies, path):
+    """One submission file from one prediction matrix, as per-column ranks."""
+    sub = pd.DataFrame(pd.DataFrame(pred).rank(pct=True).values, columns=TARGETS)
+
+--- [code #30] ---
+if RESULTS:
+    fig, ax = plt.subplots(1, 3, figsize=(12, 3.4),
+                           gridspec_kw={"width_ratios": [1, 1.35, .9]})
+
+--- [code #31] ---
+sub = pd.read_csv("submission.csv")
+assert len(sub) == len(_bench), (len(sub), len(_bench))
+assert list(sub.columns) == ["StudyInstanceUID"] + TARGETS, list(sub.columns)
+
+--- [md] ---
+## 9. What this notebook is confident about, and what it is not
+
+**Confident.** The report reader is measured on two gauges that fail in different ways, and
+the one that runs on all 4 407 studies — the silence rate — needs no labels at all, so it
+cannot be talked into agreeing. The geometry is not a matter of opinion: slice order is
+recoverable exactly from patient coordinates, physical scale exactly from pixel spacing,
+and both are wrong by default if left alone. The cache arithmetic is arithmetic. Rank
+averaging follows from the metric.
+
+**Not confident.** Two things, named rather than buried.
+
+*The annotated subset cannot settle anything on its own.* Fifty-eight studies put a ±0.16
+interval around a per-target AUC for a rare finding, and ±0.10 for a balanced one — the
+drawn intervals bear that out. Every number reported against them carries that interval,
+and the rules in §2.1 were kept on the argument plus the coverage gauge, not on a point
+estimate.
+
+*Report labels have a ceiling this pipeline cannot cross.* The 58 annotations were read
+from the images by someone who was not the reporting radiologist, and the two disagree on a
+visible fraction — a report describing a moderate effusion against an annotation of zero,
+an annotation of a Baker's cyst against a report calling the study normal. That
+disagreement is inside the training targets of all 4 407 studies, invisibly. It is the
+single largest thing standing between this notebook and a better score, and no amount of
+encoder capacity addresses it.
+
+### Three things that were believed and then measured
+
+The useful part of running the same pipeline repeatedly is that it keeps disagreeing with
+the reasoning that built it. All three of these were arguments this notebook made in
+earlier versions, in its own voice, before the arithmetic arrived:
+
+| claim | how it was tested | outcome |
+|---|---|---|
+| a 1 mm tear needs sub-0.5 mm pixels, so 266 px beats 224 px | same encoder, same slices, two arms | **wrong** — separated by ~0.001 macro AUC, twice |
+| capacity is the lever, so larger is better | small → base → large, held otherwise fixed | **half wrong** — base beat small by ~0.011, large beat neither |
+| every arm deserves an equal vote in the rank mean | greedy selection against equal weighting | equal weighting carries a known-weak arm; selection does not |
+| *(untested for three revisions)* how much of the joint is sampled | 3 → 6 → 12 slices, everything else identical | **the largest effect in the notebook: +0.033 macro AUC** |
+
+The last row is the point. Resolution was argued for at length and bought a thousandth;
+capacity bought a hundredth and then reversed; the axis nobody had measured bought three
+hundredths — thirty times the effect that the most carefully argued change produced. And
+once coverage was fixed, capacity stopped mattering: at twelve slices, `small` and `base`
+land within a thousandth of each other, which means the earlier "capacity is the lever"
+result was an artefact of a model starved of anatomy rather than of parameters.
+
+Where the gain lands is the part worth reading. More slices help the **focal** findings —
+the cruciate, the menisci, bone contusion — and do essentially nothing for the diffuse ones
+(the compartmental osteoarthritis targets, effusion). That is exactly what the anatomy
+predicts: a tear occupies a few slices and is either sampled or missed, while cartilage
+loss and joint fluid are visible on every group. The same split shows up independently in
+the mean-versus-max choice, which the arms make per target without being told about it.
+
+None of that was foreseeable from the reasoning. Each argument was sound and each
+conclusion was still wrong, which is the ordinary condition of this kind of work and the
+reason the arms are built so a comparison costs one decode pass rather than three.
+
+**A note on what did not change.** Every rewrite above touched the imaging side. Not one of
+them moved the holdout as far as the report reader did. If you fork this notebook, the
+report reader is where the score is.
+
+### Where the next point of score is
+
+Not in the encoder. §1's arithmetic says a target left near chance costs about $0.029$ of
+the final score by itself, and the coverage gauge says exactly which targets sit closest to
+that: the ones the reports are most often silent about. `Synovitis` is named in fewer than
+one report in eight and annotated on nearly half the studies; `Fracture` and `Lateral OA`
+are close behind. Those three are where the vocabulary is thin, where the labels are
+weakest, and — by §1 — where a fixed unit of work buys the most.
+
+Two concrete leads for anyone continuing:
+
+1. **More slices, and then attend over them rather than averaging.** The coverage curve
+   above says whether twelve is enough; if it is still climbing, the cheapest next move is
+   a smaller grid and more slices, since resolution has twice been shown not to matter
+   here. Beyond that, the head sees six slot embeddings and the slice groups are reduced
+   at the logit level afterwards. Letting the head attend over (slot × group) tokens would
+   let a focal finding be *found* on the group that shows it rather than diluted across
+   the rest — which is what the max-reduction is crudely approximating. That costs encoder
+   passes during training, which is why it is not here.
+2. **Read the reports with a language model rather than a lexicon.** The silence rate says
+   where morphology defeats a regular expression, and it is concentrated in particular
+   languages on particular findings. That is a bounded, measurable target.
+
+---
+
+*Reproducibility: every target is derived in-line from `train.csv`, so there is no external
+label table to go stale. `FEATURES` toggles the four non-obvious extraction rules,
+`SLOT_SCHEME=public` switches to the delivered protocol flags, and `SMOKE=1` runs the whole
+control path on a subset. Feedback on the report reader is worth more than feedback on the
+model — that is where the score is.*

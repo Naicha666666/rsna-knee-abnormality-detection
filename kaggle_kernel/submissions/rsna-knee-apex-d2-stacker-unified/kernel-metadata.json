@@ -1,0 +1,20 @@
+{
+  "id": "snowy615/rsna-knee-apex-d2-stacker-unified",
+  "title": "RSNA Knee Apex D2 Stacker Unified",
+  "code_file": "rsna-knee-apex-d2-stacker-unified.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "mattiaangeli/rsna-knee-coat-resgated-ep10-top3",
+    "nartaa/rsna-knee-publication-swa-weights-20261007"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ]
+}

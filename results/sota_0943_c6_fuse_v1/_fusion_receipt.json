@@ -1,0 +1,22 @@
+{
+  "c6_sha256": "f6c197ee440b18aee2eb64f586bf129dde74e926c0899c715a653f3996ffe904",
+  "experiment": "SOTA 0943 x C6 Rank Fusion",
+  "fused_sha256": "5ec73a0a307d537bd3b3347bb452d849d30e7dedb0526b77aaf22d578a403823",
+  "n_studies": 3,
+  "rank_corr_sota_vs_c6": {
+    "ACL": 0.9999999999999999,
+    "Baker's": 0.5,
+    "Contusion": 0.5,
+    "Effusion": 0.9999999999999999,
+    "Fracture": 0.5,
+    "Lateral Meniscus": 0.9999999999999999,
+    "Lateral OA": 0.9999999999999999,
+    "MCL": 0.5,
+    "Medial Meniscus": 0.9999999999999999,
+    "Medial OA": -0.49999999999999994,
+    "PF OA": 0.9999999999999999,
+    "Synovitis": 0.5
+  },
+  "sota_0943_sha256": "81a4a26cc549978bac939c2a0d9e469de5004f6e28fea7f18a9113fa7ae5eaee",
+  "w_c6": 0.35
+}

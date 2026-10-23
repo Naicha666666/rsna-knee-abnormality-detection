@@ -1,0 +1,284 @@
+# ============================================================================
+# 1. Configuration
+# ----------------------------------------------------------------------------
+# Everything the four branches used to mutate through `globals()` lives here as
+# an explicit, immutable object. Nothing below this cell writes to a global.
+# ============================================================================
+from __future__ import annotations
+
+import contextlib
+import gc
+import glob
+import hashlib
+import json
+import os
+import re
+import threading
+import time
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field, replace
+from pathlib import Path
+
+import cv2
+import numpy as np
+import pandas as pd
+import pydicom
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TRANSFORMERS_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
+cv2.setNumThreads(1)
+torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.allow_tf32 = True
+
+T0 = time.time()
+
+
+def log(msg):
+    print(f"[{time.time() - T0:7.1f}s] {msg}", flush=True)
+
+
+class WeightsError(RuntimeError):
+    pass
+
+
+# ---------------------------------------------------------------- paths -----
+def _competition_root():
+    # API-attached competitions mount under /competitions/<slug>, UI-added ones
+    # under the short path. Resolve both rather than assuming either.
+    for candidate in (
+        "/kaggle/input/competitions/rsna-knee-abnormality-detection",
+        "/kaggle/input/rsna-knee-abnormality-detection",
+    ):
+        if os.path.isdir(candidate):
+            return Path(candidate)
+    raise RuntimeError("competition data not found under /kaggle/input")
+
+
+ROOT = _competition_root()
+WORK = Path("/kaggle/working")
+def _find_asset_dir(name):
+    roots = [Path('/kaggle/input'), Path('/kaggle/input/competitions')]
+    hits = []
+    for root in roots:
+        if root.exists():
+            hits.extend(p for p in root.glob('**/' + name) if p.is_dir())
+    if not hits:
+        raise FileNotFoundError('asset directory not mounted: ' + name)
+    return sorted(set(hits), key=str)[0]
+ASSET = _find_asset_dir('rsna-knee-bend-dinov3-0917-repro-assets')
+DINO_DIR = Path("/kaggle/input/models/metaresearch/dinov2/pytorch/small/1")
+DINO_PACKAGE = ASSET / "rsna-knee-weights"
+FOLD_CKPT_DIR = ASSET / "knee-mri-fold-weights"
+RAD_ENCODER = ASSET / "resnet-50-radimagenet-marwan/ResNet50.pt"
+RAD_HEADS_V15 = ASSET / "rsna-knee-e9-radimagenet-heads-v15/v52_radimagenet_heads.pt"
+RAD_HEADS_E13 = ASSET / "kernel-sources/rsna-knee-e13-train/rsna_rad_e11/v52_e11_heads.pt"
+
+SPLIT = "test_series" if (ROOT / "test_series").is_dir() else "train_series"
+DEVICES = [torch.device(f"cuda:{i}") for i in range(torch.cuda.device_count())] or [
+    torch.device("cpu")
+]
+
+TARGETS = [
+    "ACL", "MCL", "Medial Meniscus", "Lateral Meniscus", "Medial OA", "Lateral OA",
+    "PF OA", "Effusion", "Synovitis", "Baker's", "Contusion", "Fracture",
+]
+SEED = 2026
+TIME_BUDGET = 8.0 * 3600
+HDR_THREADS = 32
+PIX_THREADS = 12
+CACHE_FRACTION = 0.45  # share of MemAvailable a single decode sweep may claim
+
+# ------------------------------------------------------------------ mode ---
+# "submit"   : score the hidden test split and write submission.csv
+# "validate" : score only the studies that carry gold labels, so an ensemble
+#              change can be judged offline instead of on the leaderboard.
+MODE = os.environ.get("RSNA_MODE", "submit")
+GOLD = None
+
+if MODE == "validate":
+    SPLIT = "train_series"
+    _train = pd.read_csv(ROOT / "train.csv", dtype={"StudyInstanceUID": str})
+    _labelled = _train.dropna(subset=[t for t in TARGETS if t in _train.columns])
+    if not len(_labelled) or not set(TARGETS).issubset(_train.columns):
+        raise RuntimeError(
+            "validate mode needs train.csv to carry the twelve finding columns; "
+            f"found {[c for c in _train.columns if c != 'StudyInstanceUID'][:6]}"
+        )
+    TEST = _labelled[["StudyInstanceUID"]].reset_index(drop=True)
+    GOLD = _labelled.set_index("StudyInstanceUID")[TARGETS].astype(float)
+    log(f"VALIDATE mode: {len(TEST)} gold-labelled studies")
+else:
+    TEST = pd.read_csv(ROOT / "test.csv", dtype={"StudyInstanceUID": str})
+
+# --------------------------------------------------------- competition csv --
+TEST_IDS = TEST["StudyInstanceUID"].astype(str).tolist()
+SERIES_CSV = pd.read_csv(
+    ROOT / f"{SPLIT}.csv",
+    dtype={"StudyInstanceUID": str, "SeriesInstanceUID": str},
+)
+SERIES_CSV = SERIES_CSV.loc[:, ~SERIES_CSV.columns.duplicated()]
+PLANE_OF = dict(zip(SERIES_CSV.SeriesInstanceUID, SERIES_CSV.Anatomical_Plane))
+SERIES_ROWS = {
+    study: group.to_dict("records")
+    for study, group in SERIES_CSV[SERIES_CSV.StudyInstanceUID.isin(set(TEST_IDS))]
+    .groupby("StudyInstanceUID")
+}
+
+_sample = ROOT / "sample_submission.csv"
+SUB_COLS = (
+    list(pd.read_csv(_sample, nrows=1).columns)
+    if _sample.is_file()
+    else ["StudyInstanceUID"] + TARGETS
+)
+assert SUB_COLS[1:] == TARGETS, f"unexpected submission schema: {SUB_COLS}"
+log(f"root {ROOT} | {len(TEST_IDS)} test studies | {len(SERIES_CSV)} series rows")
+log(f"devices: {[str(d) for d in DEVICES]}")
+
+# ------------------------------------------------------------ pixel specs --
+# `rules` selects between the two preprocessing dialects the checkpoints were
+# fitted under. Only these two combinations are reproducible.
+RULES_NATIVE = {"order": "normal", "lat": "centre", "slot_fallback": False, "decode_fill": "nearest"}
+RULES_LEGACY = {"order": "dominant_axis", "lat": "corner_x", "slot_fallback": True, "decode_fill": "zero"}
+
+SLOTS_RECOVERED = (
+    ("SAG_FLUID_FS", "Sagittal", True, True),
+    ("COR_FLUID_FS", "Coronal", True, True),
+    ("AX_FLUID_FS", "Axial", True, True),
+    ("SAG_FLUID_NOFS", "Sagittal", True, False),
+    ("COR_T1", "Coronal", False, False),
+    ("SAG_T1", "Sagittal", False, False),
+)
+SLOTS_RAD_E10 = (
+    ("SAG_FS", "Sagittal", None, True),
+    ("COR_FS", "Coronal", None, True),
+    ("AX_FS", "Axial", None, True),
+)
+SLOTS_RAD_E13 = SLOTS_RAD_E10 + (("SAG_NOFS", "Sagittal", None, False),)
+SLOTS_RAD_E11 = (
+    ("SAG_NOFS", "Sagittal", None, False),
+    ("COR_NOFS", "Coronal", None, False),
+    ("AX_NOFS", "Axial", None, False),
+    ("SAG_FS", "Sagittal", None, True),
+)
+
+LAT_MIN_OFFSET_MM = 20.0
+LEGACY_LAT_OFFSET_MM = 5.0
+
+
+@dataclass(frozen=True)
+class PixelSpec:
+    """One decoding contract. Replaces the mutated globals of the original."""
+
+    name: str
+    slots: tuple
+    img: int = 336
+    slices: int = 3
+    group: int = 3                 # window depth the head was fitted with
+    crop_mm: float = 130.0
+    band: tuple = (0.2, 0.8)
+    rules: str = "native"          # "native" | "legacy"
+    mode: str = "rescale"          # pixel decode dialect, see decode_slice()
+
+    @property
+    def rule(self):
+        return RULES_NATIVE if self.rules == "native" else RULES_LEGACY
+
+    @property
+    def n_slot(self):
+        return len(self.slots)
+
+    @property
+    def nbytes_per_study(self):
+        return self.n_slot * self.slices * self.img * self.img
+
+
+# ------------------------------------------------------------ rank helpers --
+def rank_avg(values):
+    """pandas average-tie percentile rank (branches A, C and the final blends)."""
+    return (
+        pd.DataFrame(np.asarray(values, np.float64))
+        .rank(method="average", pct=True)
+        .to_numpy(np.float64)
+    )
+
+
+def rank_ordinal(values):
+    """argsort ordinal percentile rank (branch B fold mean, branch D windows)."""
+    values = np.asarray(values)
+    order = values.argsort(0).argsort(0).astype(np.float64)
+    return order / max(1, values.shape[0] - 1)
+
+
+def align_to_test(values, ids, fill=0.5):
+    """Map a (studies x targets) matrix onto the submission row order."""
+    position = {str(uid): i for i, uid in enumerate(ids)}
+    out = np.full((len(TEST_IDS), len(TARGETS)), float(fill), np.float64)
+    take = [position.get(uid) for uid in TEST_IDS]
+    hit = np.array([i for i, p in enumerate(take) if p is not None], np.int64)
+    src = np.array([p for p in take if p is not None], np.int64)
+    if len(hit):
+        out[hit] = np.asarray(values, np.float64)[src]
+    missing = len(TEST_IDS) - len(hit)
+    if missing:
+        log(f"align_to_test: {missing} study(ies) absent, filled with {fill}")
+    return out
+
+
+def write_submission(values, path=WORK / "submission.csv", tag=""):
+    values = np.asarray(values, np.float64)
+    if values.shape != (len(TEST_IDS), len(TARGETS)):
+        raise RuntimeError(f"submission shape {values.shape}")
+    if not np.isfinite(values).all() or values.min() < 0 or values.max() > 1:
+        raise RuntimeError("invalid submission values")
+    frame = pd.DataFrame(values.astype(np.float32), columns=TARGETS)
+    frame.insert(0, "StudyInstanceUID", TEST_IDS)
+    frame = frame[SUB_COLS]
+    frame.to_csv(path, index=False)
+    log(f"wrote {path.name}{(' (' + tag + ')') if tag else ''}; {frame.shape}")
+    return frame
+
+
+def available_gb():
+    try:
+        with open("/proc/meminfo") as handle:
+            info = {k.strip(): v for k, v in (l.split(":", 1) for l in handle if ":" in l)}
+        return int(info["MemAvailable"].split()[0]) / 1024 ** 2
+    except Exception:
+        return 24.0
+
+
+# --------------------------------------------------------------- knobs -----
+# Every blend weight in the pipeline, in one place, so a variant is a one-line
+# edit and `validate` mode can measure it. The defaults reproduce 0.936.
+TUNING = {
+    "fold_blend_w": 0.45,        # branch B against branch A
+    "rad_alpha": 0.50,           # RadImageNet reference vote
+    "rad_exclude": ("Baker's", "Fracture"),
+    "rad_e13_w": 0.50,           # e13 view inside the reference vote
+    "second_alpha": 0.15,        # e11 second-pass vote
+    "cal_w": 0.40,               # 88-feature calibrator on gated findings
+    "coatnet_base": 0.50,
+    "coatnet_overrides": {"ACL": 0.53, "Medial Meniscus": 0.56,
+                          "Lateral Meniscus": 0.61, "Lateral OA": 0.55,
+                          "Fracture": 0.61},
+    "coatnet_fallback": {"Medial Meniscus": 0.52, "Lateral Meniscus": 0.54,
+                         "Fracture": 0.54},
+    "raptor_complement": {"MCL": 0.16, "Medial OA": 0.10, "PF OA": 0.12,
+                          "Effusion": 0.10, "Synovitis": 0.16, "Baker's": 0.12,
+                          "Contusion": 0.12},
+}
+
+# Candidate score levers. All default to the 0.936 behaviour; switch one on,
+# run `validate`, and keep it only if the bootstrap says so.
+FLAGS = {
+    "tta_jitter": False,       # branch A: average a mildly augmented second view
+    "coverage_repair": False,  # fill an empty slot from another series of the same plane
+}
+AUG_ROT_DEG, AUG_SCALE, AUG_SHIFT, AUG_INTENSITY = 8.0, 0.08, 0.05, 0.1
+
+# Branch outputs land here as (studies x targets) rank matrices in test order.
+STAGE = {}

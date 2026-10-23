@@ -1,0 +1,24 @@
+{
+  "id": "georgexue666/rsna-knee-ex-b-coat-g96-v1",
+  "title": "RSNA Knee Ex B Coat G96 V1",
+  "code_file": "rsna-knee-ex-b-coat-g96-v1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "rostigor/rsna-knee-r6-fe055406",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "mattiaangeli/rsna-knee-coat-resgated-ep10-top3",
+    "mattiaangeli/rsna-knee-coatnet-global96-top3",
+    "mattiaangeli/opencv-python-headless-4120088-x86"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}

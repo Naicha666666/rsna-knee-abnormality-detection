@@ -1,0 +1,13 @@
+try:
+    main()
+except LabelSourceError:
+    traceback.print_exc()
+    raise
+except Exception:
+    traceback.print_exc()
+    t = pd.read_csv(find_root() / 'test.csv')
+    for c in TARGETS:
+        t[c] = 0.5
+    t.to_csv('submission.csv', index=False)
+    print('wrote fallback submission.csv')
+log('done')

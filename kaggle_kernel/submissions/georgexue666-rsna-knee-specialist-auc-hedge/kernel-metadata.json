@@ -1,0 +1,23 @@
+{
+  "id": "georgexue666/rsna-knee-specialist-auc-hedge",
+  "title": "RSNA Knee Specialist AUC Hedge",
+  "code_file": "rsna-knee-specialist-auc-hedge.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "heliosli/rsna-knee-compact-r7cnxfsss",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "georgexue666/rsna-knee-c6-warmstart-ep8-weights",
+    "georgexue666/rsna-knee-specialist-auc-ranker-weights",
+    "heliosli/rsna-knee-compact-v1"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

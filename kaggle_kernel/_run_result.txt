@@ -1,0 +1,242 @@
+Poller started for easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset at Sat, Aug  8, 2026  9:48:54 AM
+--- poll 1 (Sat, Aug  8, 2026  9:48:57 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 2 (Sat, Aug  8, 2026  9:49:30 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 3 (Sat, Aug  8, 2026  9:50:03 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 4 (Sat, Aug  8, 2026  9:50:36 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 5 (Sat, Aug  8, 2026  9:51:09 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 6 (Sat, Aug  8, 2026  9:51:42 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 7 (Sat, Aug  8, 2026  9:52:15 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 8 (Sat, Aug  8, 2026  9:52:48 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 9 (Sat, Aug  8, 2026  9:53:21 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 10 (Sat, Aug  8, 2026  9:53:54 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 11 (Sat, Aug  8, 2026  9:54:26 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 12 (Sat, Aug  8, 2026  9:54:59 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 13 (Sat, Aug  8, 2026  9:55:32 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 14 (Sat, Aug  8, 2026  9:56:04 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 15 (Sat, Aug  8, 2026  9:56:37 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 16 (Sat, Aug  8, 2026  9:57:10 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 17 (Sat, Aug  8, 2026  9:57:43 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 18 (Sat, Aug  8, 2026  9:58:17 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 19 (Sat, Aug  8, 2026  9:58:49 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 20 (Sat, Aug  8, 2026  9:59:22 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 21 (Sat, Aug  8, 2026  9:59:55 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 22 (Sat, Aug  8, 2026 10:00:28 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 23 (Sat, Aug  8, 2026 10:01:01 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 24 (Sat, Aug  8, 2026 10:01:34 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 25 (Sat, Aug  8, 2026 10:02:07 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 26 (Sat, Aug  8, 2026 10:02:40 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 27 (Sat, Aug  8, 2026 10:03:13 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 28 (Sat, Aug  8, 2026 10:03:45 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 29 (Sat, Aug  8, 2026 10:04:18 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 30 (Sat, Aug  8, 2026 10:04:51 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 31 (Sat, Aug  8, 2026 10:05:24 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 32 (Sat, Aug  8, 2026 10:05:57 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 33 (Sat, Aug  8, 2026 10:06:29 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 34 (Sat, Aug  8, 2026 10:07:02 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 35 (Sat, Aug  8, 2026 10:07:35 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 36 (Sat, Aug  8, 2026 10:08:08 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 37 (Sat, Aug  8, 2026 10:08:41 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 38 (Sat, Aug  8, 2026 10:09:14 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 39 (Sat, Aug  8, 2026 10:09:47 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 40 (Sat, Aug  8, 2026 10:10:20 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 41 (Sat, Aug  8, 2026 10:10:54 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 42 (Sat, Aug  8, 2026 10:11:27 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 43 (Sat, Aug  8, 2026 10:12:00 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 44 (Sat, Aug  8, 2026 10:12:33 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 45 (Sat, Aug  8, 2026 10:13:05 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 46 (Sat, Aug  8, 2026 10:13:39 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 47 (Sat, Aug  8, 2026 10:14:11 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 48 (Sat, Aug  8, 2026 10:14:44 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 49 (Sat, Aug  8, 2026 10:15:17 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 50 (Sat, Aug  8, 2026 10:15:50 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 51 (Sat, Aug  8, 2026 10:16:23 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 52 (Sat, Aug  8, 2026 10:16:56 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 53 (Sat, Aug  8, 2026 10:17:29 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 54 (Sat, Aug  8, 2026 10:18:02 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 55 (Sat, Aug  8, 2026 10:18:35 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 56 (Sat, Aug  8, 2026 10:19:08 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 57 (Sat, Aug  8, 2026 10:19:41 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 58 (Sat, Aug  8, 2026 10:20:14 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 59 (Sat, Aug  8, 2026 10:20:48 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+--- poll 60 (Sat, Aug  8, 2026 10:21:21 AM) ---
+C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\requests\__init__.py:109: RequestsDependencyWarning: urllib3 (2.3.0) or chardet (7.4.1)/charset_normalizer (3.4.1) doesn't match a supported version!
+  warnings.warn(
+easonyanyan/rsna-knee-baseline-001-tiny-cnn-6-slot-subset has status "KernelWorkerStatus.RUNNING"
+Poller done at Sat, Aug  8, 2026 10:21:52 AM

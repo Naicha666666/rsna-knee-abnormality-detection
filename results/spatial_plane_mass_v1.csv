@@ -1,0 +1,193 @@
+model,label,unit,mass
+c6r,ACL,Sagittal,0.9347648
+c6r,ACL,Coronal,0.045442916
+c6r,ACL,Axial,0.019792225
+c6r,ACL,SagF,0.6328817
+c6r,ACL,SagS,0.30188307
+c6r,ACL,CorF,0.041412327
+c6r,ACL,CorS,0.0040305937
+c6r,ACL,Ax,0.019792225
+c6r,MCL,Sagittal,0.4544871
+c6r,MCL,Coronal,0.47517386
+c6r,MCL,Axial,0.07033913
+c6r,MCL,SagF,0.36543187
+c6r,MCL,SagS,0.08905521
+c6r,MCL,CorF,0.44337726
+c6r,MCL,CorS,0.031796597
+c6r,MCL,Ax,0.07033913
+c6r,Medial Meniscus,Sagittal,0.74174416
+c6r,Medial Meniscus,Coronal,0.23068084
+c6r,Medial Meniscus,Axial,0.027575076
+c6r,Medial Meniscus,SagF,0.61521864
+c6r,Medial Meniscus,SagS,0.12652543
+c6r,Medial Meniscus,CorF,0.20940617
+c6r,Medial Meniscus,CorS,0.021274678
+c6r,Medial Meniscus,Ax,0.027575076
+c6r,Lateral Meniscus,Sagittal,0.8523532
+c6r,Lateral Meniscus,Coronal,0.122315146
+c6r,Lateral Meniscus,Axial,0.025331644
+c6r,Lateral Meniscus,SagF,0.6436108
+c6r,Lateral Meniscus,SagS,0.20874245
+c6r,Lateral Meniscus,CorF,0.10726412
+c6r,Lateral Meniscus,CorS,0.015051035
+c6r,Lateral Meniscus,Ax,0.025331644
+c6r,Medial OA,Sagittal,0.6981006
+c6r,Medial OA,Coronal,0.21262267
+c6r,Medial OA,Axial,0.08927665
+c6r,Medial OA,SagF,0.43796536
+c6r,Medial OA,SagS,0.26013532
+c6r,Medial OA,CorF,0.17254
+c6r,Medial OA,CorS,0.040082667
+c6r,Medial OA,Ax,0.08927665
+c6r,Lateral OA,Sagittal,0.81763685
+c6r,Lateral OA,Coronal,0.11894688
+c6r,Lateral OA,Axial,0.06341635
+c6r,Lateral OA,SagF,0.51255
+c6r,Lateral OA,SagS,0.30508673
+c6r,Lateral OA,CorF,0.09673434
+c6r,Lateral OA,CorS,0.022212543
+c6r,Lateral OA,Ax,0.06341635
+c6r,PF OA,Sagittal,0.7923939
+c6r,PF OA,Coronal,0.08326857
+c6r,PF OA,Axial,0.124337524
+c6r,PF OA,SagF,0.5318582
+c6r,PF OA,SagS,0.26053575
+c6r,PF OA,CorF,0.06708973
+c6r,PF OA,CorS,0.016178843
+c6r,PF OA,Ax,0.124337524
+c6r,Effusion,Sagittal,0.6935028
+c6r,Effusion,Coronal,0.16279961
+c6r,Effusion,Axial,0.14369756
+c6r,Effusion,SagF,0.6024808
+c6r,Effusion,SagS,0.091021985
+c6r,Effusion,CorF,0.14206977
+c6r,Effusion,CorS,0.020729862
+c6r,Effusion,Ax,0.14369756
+c6r,Synovitis,Sagittal,0.5646072
+c6r,Synovitis,Coronal,0.2714046
+c6r,Synovitis,Axial,0.16398817
+c6r,Synovitis,SagF,0.4433654
+c6r,Synovitis,SagS,0.12124185
+c6r,Synovitis,CorF,0.20409498
+c6r,Synovitis,CorS,0.067309625
+c6r,Synovitis,Ax,0.16398817
+c6r,Baker's,Sagittal,0.6971494
+c6r,Baker's,Coronal,0.125075
+c6r,Baker's,Axial,0.17777564
+c6r,Baker's,SagF,0.5932923
+c6r,Baker's,SagS,0.103857115
+c6r,Baker's,CorF,0.11138609
+c6r,Baker's,CorS,0.013688912
+c6r,Baker's,Ax,0.17777564
+c6r,Contusion,Sagittal,0.5689435
+c6r,Contusion,Coronal,0.3183851
+c6r,Contusion,Axial,0.11267147
+c6r,Contusion,SagF,0.47934586
+c6r,Contusion,SagS,0.089597605
+c6r,Contusion,CorF,0.3049186
+c6r,Contusion,CorS,0.013466529
+c6r,Contusion,Ax,0.11267147
+c6r,Fracture,Sagittal,0.6856067
+c6r,Fracture,Coronal,0.24234125
+c6r,Fracture,Axial,0.072052024
+c6r,Fracture,SagF,0.50295985
+c6r,Fracture,SagS,0.18264687
+c6r,Fracture,CorF,0.207508
+c6r,Fracture,CorS,0.034833256
+c6r,Fracture,Ax,0.072052024
+c10,ACL,Sagittal,0.7754033
+c10,ACL,Coronal,0.13414173
+c10,ACL,Axial,0.09045489
+c10,ACL,SagF,0.57957494
+c10,ACL,SagS,0.1958285
+c10,ACL,CorF,0.10656972
+c10,ACL,CorS,0.027572008
+c10,ACL,Ax,0.09045489
+c10,MCL,Sagittal,0.5292342
+c10,MCL,Coronal,0.3181813
+c10,MCL,Axial,0.15258458
+c10,MCL,SagF,0.37800473
+c10,MCL,SagS,0.15122949
+c10,MCL,CorF,0.25472155
+c10,MCL,CorS,0.06345967
+c10,MCL,Ax,0.15258458
+c10,Medial Meniscus,Sagittal,0.7398788
+c10,Medial Meniscus,Coronal,0.21676393
+c10,Medial Meniscus,Axial,0.04335738
+c10,Medial Meniscus,SagF,0.59948885
+c10,Medial Meniscus,SagS,0.14038989
+c10,Medial Meniscus,CorF,0.19378835
+c10,Medial Meniscus,CorS,0.02297559
+c10,Medial Meniscus,Ax,0.04335738
+c10,Lateral Meniscus,Sagittal,0.75184274
+c10,Lateral Meniscus,Coronal,0.18611607
+c10,Lateral Meniscus,Axial,0.062041163
+c10,Lateral Meniscus,SagF,0.535
+c10,Lateral Meniscus,SagS,0.21684271
+c10,Lateral Meniscus,CorF,0.16280256
+c10,Lateral Meniscus,CorS,0.023313535
+c10,Lateral Meniscus,Ax,0.062041163
+c10,Medial OA,Sagittal,0.635667
+c10,Medial OA,Coronal,0.23835473
+c10,Medial OA,Axial,0.12597819
+c10,Medial OA,SagF,0.37647521
+c10,Medial OA,SagS,0.25919187
+c10,Medial OA,CorF,0.18726073
+c10,Medial OA,CorS,0.05109398
+c10,Medial OA,Ax,0.12597819
+c10,Lateral OA,Sagittal,0.6781329
+c10,Lateral OA,Coronal,0.19027027
+c10,Lateral OA,Axial,0.13159677
+c10,Lateral OA,SagF,0.41337353
+c10,Lateral OA,SagS,0.26475942
+c10,Lateral OA,CorF,0.1496967
+c10,Lateral OA,CorS,0.040573575
+c10,Lateral OA,Ax,0.13159677
+c10,PF OA,Sagittal,0.64234096
+c10,PF OA,Coronal,0.15980595
+c10,PF OA,Axial,0.19785306
+c10,PF OA,SagF,0.41362152
+c10,PF OA,SagS,0.2287195
+c10,PF OA,CorF,0.12376154
+c10,PF OA,CorS,0.036044434
+c10,PF OA,Ax,0.19785306
+c10,Effusion,Sagittal,0.5463965
+c10,Effusion,Coronal,0.19412261
+c10,Effusion,Axial,0.2594809
+c10,Effusion,SagF,0.4402301
+c10,Effusion,SagS,0.10616639
+c10,Effusion,CorF,0.16160081
+c10,Effusion,CorS,0.032521766
+c10,Effusion,Ax,0.2594809
+c10,Synovitis,Sagittal,0.50824267
+c10,Synovitis,Coronal,0.2614894
+c10,Synovitis,Axial,0.23026796
+c10,Synovitis,SagF,0.3517386
+c10,Synovitis,SagS,0.15650403
+c10,Synovitis,CorF,0.19079892
+c10,Synovitis,CorS,0.07069046
+c10,Synovitis,Ax,0.23026796
+c10,Baker's,Sagittal,0.5809885
+c10,Baker's,Coronal,0.1233586
+c10,Baker's,Axial,0.29565284
+c10,Baker's,SagF,0.45448914
+c10,Baker's,SagS,0.1264994
+c10,Baker's,CorF,0.09448324
+c10,Baker's,CorS,0.028875358
+c10,Baker's,Ax,0.29565284
+c10,Contusion,Sagittal,0.5683988
+c10,Contusion,Coronal,0.27159226
+c10,Contusion,Axial,0.16000889
+c10,Contusion,SagF,0.4955194
+c10,Contusion,SagS,0.0728794
+c10,Contusion,CorF,0.23930803
+c10,Contusion,CorS,0.032284252
+c10,Contusion,Ax,0.16000889
+c10,Fracture,Sagittal,0.59767574
+c10,Fracture,Coronal,0.26697582
+c10,Fracture,Axial,0.13534851
+c10,Fracture,SagF,0.3645707
+c10,Fracture,SagS,0.23310491
+c10,Fracture,CorF,0.20123062
+c10,Fracture,CorS,0.06574522
+c10,Fracture,Ax,0.13534851

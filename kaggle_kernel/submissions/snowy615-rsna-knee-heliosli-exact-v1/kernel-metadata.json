@@ -1,0 +1,21 @@
+{
+  "id": "snowy615/rsna-knee-heliosli-exact-v1",
+  "title": "RSNA Knee heliosli exact v1",
+  "code_file": "rsna-knee-heliosli-exact-v1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "rostigor/rsna-knee-r6-fe055406",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}

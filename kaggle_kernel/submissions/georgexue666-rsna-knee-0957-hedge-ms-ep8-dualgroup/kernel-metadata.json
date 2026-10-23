@@ -1,0 +1,26 @@
+{
+  "id": "georgexue666/rsna-knee-0957-hedge-ms-ep8-dualgroup",
+  "title": "RSNA Knee 0957 hedge-ms-ep8-dualgroup",
+  "code_file": "rsna-knee-0957-hedge-ms-ep8-dualgroup.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "heliosli/rsna-knee-compact-r7cnxfsss",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "easonyanyan/rsna-knee-c6-warmstart-ep8-weights",
+    "heliosli/rsna-knee-compact-v1"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": []
+}

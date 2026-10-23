@@ -1,0 +1,16 @@
+{
+  "id": "easonyanyan/rsna-knee-b11-vlm-roi-pilot",
+  "title": "RSNA Knee B11 VLM ROI Pilot",
+  "code_file": "b11-vlm-roi-pilot.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": false,
+  "enable_tpu": false,
+  "enable_internet": true,
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-b11-pilot-data"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

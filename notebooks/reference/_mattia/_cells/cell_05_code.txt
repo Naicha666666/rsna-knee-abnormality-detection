@@ -1,0 +1,101 @@
+def log(msg):
+    print(f'[{time.time() - T0:7.1f}s] {msg}', flush=True)
+
+def find_root():
+    for c in [Path('/kaggle/input/competitions/rsna-knee-abnormality-detection'), Path('/kaggle/input/rsna-knee-abnormality-detection'), Path('data'), Path('.')]:
+        if (c / 'test.csv').is_file() and (c / 'test_series').is_dir():
+            return c
+    base = Path('/kaggle/input')
+    if base.is_dir():
+        for depth1 in sorted((p for p in base.iterdir() if p.is_dir())):
+            for cand in [depth1] + sorted((p for p in depth1.iterdir() if p.is_dir())):
+                if (cand / 'test.csv').is_file():
+                    return cand
+    raise FileNotFoundError(f'competition mount not found (cwd {Path.cwd()}); expected a directory holding test.csv and test_series/')
+
+def find_dinov2(variant='small'):
+    base = Path('/kaggle/input')
+    if not base.is_dir():
+        return None
+    hits = []
+    for root, dirs, files in os.walk(base):
+        dirs[:] = [d for d in dirs if d not in ('train_series', 'test_series')]
+        if 'config.json' in files and 'dinov2' in root.lower():
+            hits.append(Path(root))
+    for h in hits:
+        if variant in str(h).lower():
+            return h
+    return hits[0] if hits else None
+LABEL_COLS = TARGETS + [t + '__conf' for t in TARGETS]
+
+class LabelSourceError(RuntimeError):
+    pass
+
+def find_label_table():
+    base = Path('/kaggle/input')
+    cands = []
+    if base.is_dir():
+        for root, dirs, files in os.walk(base):
+            dirs[:] = [d for d in dirs if d not in ('train_series', 'test_series')]
+            cands += [Path(root) / f for f in files if f.startswith('report_labels') and f.endswith('.csv')]
+    cands += [p for p in (Path('data/derived/report_labels_v2.csv'),) if p.is_file()]
+    for c in cands:
+        try:
+            head = pd.read_csv(c, nrows=1)
+        except Exception:
+            continue
+        if 'StudyInstanceUID' in head.columns and all((t in head.columns for t in TARGETS)):
+            return c
+    return None
+
+def label_mount_attached():
+    base = Path('/kaggle/input')
+    if not base.is_dir():
+        return False
+    return any(('label' in p.name.lower() for p in base.iterdir() if p.is_dir()))
+
+def read_labels(train_df):
+    n = len(train_df)
+    lab = pd.DataFrame([extract(r) for r in train_df['Report'].fillna('')])
+    lab['StudyInstanceUID'] = train_df['StudyInstanceUID'].values
+    lab = lab.set_index('StudyInstanceUID')
+    src = find_label_table()
+    if src is None:
+        if label_mount_attached():
+            raise LabelSourceError('LABEL SOURCE: a label dataset is mounted but no usable table was found in it. Falling back to the lexicon here would train on the weaker labels and say so only in a log line, so the run stops instead.')
+        log(f'LABEL SOURCE: lexicon, {n} studies (no table mounted)')
+        return lab
+    tab = pd.read_csv(src).set_index('StudyInstanceUID')
+    missing = [c for c in LABEL_COLS if c not in tab.columns]
+    if missing:
+        raise LabelSourceError(f'LABEL SOURCE: {src} is missing {len(missing)} expected columns (first: {missing[0]!r}). Refusing to fall back silently.')
+    hit = lab.index.intersection(tab.index)
+    if not len(hit):
+        raise LabelSourceError(f'LABEL SOURCE: {src} shares no StudyInstanceUID with train.csv.')
+    log(f'LABEL SOURCE: {src.name} covers {len(hit)} of {n} studies, lexicon for the remaining {n - len(hit)}')
+    lab.loc[hit, LABEL_COLS] = tab.loc[hit, LABEL_COLS].values
+    return lab
+ROOT = find_root()
+log(f'input root: {ROOT}')
+IMG = CACHE_IMG
+
+def available_gb():
+    try:
+        with open('/proc/meminfo') as fh:
+            info = {k.strip(): v for k, v in (l.split(':', 1) for l in fh if ':' in l)}
+        return int(info['MemAvailable'].split()[0]) / 1024 ** 2
+    except Exception:
+        return CACHE_BUDGET_GB / CACHE_FRACTION
+
+def plan_cache(n_study, n_test=0):
+    avail = available_gb()
+    budget = min(avail * CACHE_FRACTION, CACHE_BUDGET_MAX_GB)
+    n_total = n_study + max(n_test, int(TEST_SHARE * n_study))
+    per_slice = n_total * N_SLOT * IMG * IMG
+    afford = int(budget * 1024 ** 3 // max(per_slice, 1))
+    groups = max(1, min(N_GROUP_MAX, afford // GROUP))
+    log(f'memory: {avail:.1f} GB available, {budget:.1f} GB to the cache; sizing for {n_study} train + {n_total - n_study} test studies -> {groups} group(s) of {GROUP} = {groups * GROUP} slices per slot' + (f' (wanted {N_GROUP_MAX})' if groups < N_GROUP_MAX else ''))
+    return groups
+N_GROUP = plan_cache(len(pd.read_csv(ROOT / 'train.csv')), len(pd.read_csv(ROOT / 'test.csv')))
+CACHE_SLICES = GROUP * N_GROUP
+log(f'cache layout: {N_GROUP} groups x {GROUP} slices = {CACHE_SLICES} per slot')

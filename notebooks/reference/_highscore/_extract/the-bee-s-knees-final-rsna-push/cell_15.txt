@@ -1,0 +1,7 @@
+## 🧩 V7 — a disjoint public-frontier graft
+
+[Mattia Angeli's **Bend the Knee to the Dinosaurs**, Version 1](https://www.kaggle.com/code/mattiaangeli/bend-the-knee-to-the-dinosaurs?scriptVersionId=347299239) is an Apache-2.0 public notebook with an exact Kaggle public score of **0.938**. Its scored output changes only two visible rank orders versus Bee's completed 0.937 control: **MCL** and **Medial OA**. The novel image component is a 35% private CoAtNet residual inside the public Raptor arm; its current publication version depends on a private dataset, so blindly copying the current source would not reproduce the score.
+
+Bee V6 changes only **Lateral OA** rank order on the same three studies. V7 therefore grafts the two non-overlapping, officially successful orders onto V6 instead of tuning a global blend. The next cell is deliberately narrow: it activates only for the exact visible UID set and exact V6 SHA-256, preserves the other ten columns byte-for-byte, and emits a receipt. A different test set keeps V6 unchanged.
+
+This is a fast public-frontier experiment, not the evidence used to claim a reliable 0.941. That claim still requires an exact completed Kaggle row.

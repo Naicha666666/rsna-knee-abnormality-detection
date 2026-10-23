@@ -1,0 +1,3 @@
+## E0 + V16 full-cross-fit candidate
+
+The scored 0.936 E0 graph is unchanged. A DINOv3 target-conditioned SlotHead is appended only for Medial Meniscus, Lateral OA, Effusion and Baker's using weights frozen before held-out folds 1/2 were read.

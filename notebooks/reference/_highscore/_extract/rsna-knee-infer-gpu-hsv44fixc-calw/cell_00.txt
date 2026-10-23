@@ -1,0 +1,57 @@
+<div align="center">
+
+# Head and shoulders, knees and toes
+
+### A reproducible knee-MRI ensemble, with an honest specialist ablation
+
+<img src="https://playbees.firstcry.com/blog/wp-content/uploads/2025/12/Head-Shoulders-Knees-and-Toes-Lyrics-Nursery-Rhymes-For-Kids.jpg" width="780" alt="Head, Shoulders, Knees and Toes nursery-rhyme illustration">
+
+<sub>Cover image selected by the notebook owner. Source: <a href="https://www.bing.com/images/search?view=detailV2&ccid=R3yueXDs&id=615F980032BC4C1280484744A510D964D1306DA6">Bing Images / FirstCry PlayBees</a>.</sub>
+
+</div>
+
+---
+
+| Best completed H&S score | Latest scored recipe (V47) | Parent graph | Runtime target |
+|:--:|:--:|:--:|:--:|
+| **0.936** | **0.935** | **DINOsaur V14 / V4.5** | **T4 ×2** |
+
+An inspectable **DINO + RadImageNet + Raptor** parent, followed by the
+OrthoDiffusion extension documented below. The parent reached **0.936**;
+the later specialist recipes reached **0.935**. The ablation note explains
+that distinction and includes a small audit you can reuse in your own experiments.
+
+The parent's four prediction cells reproduce the historical public DINOsaur
+Version 14 graph, with only the disclosed future-import ordering and
+two-layout Kaggle mount fixes. The two specialist runtimes and final integration
+remain intact. **This refresh changes documentation only, not predictions.**
+
+## What the ensemble sees
+
+```text
+knee DICOM series
+  ├─ protocol-aware DINO transformer views
+  ├─ RadImageNet medical-image views
+  └─ Raptor CoAtNet study windows
+       ↓
+target-specific rank fusion
+       ↓
+12 abnormality scores per study
+```
+
+The reproduced Raptor stage in V14 uses the expanded-corpus
+CoAtNet checkpoint and its diversity-residual fusion, while retaining the
+transformer and radiology branches that make the ensemble less brittle than a
+single architecture.
+
+## Reproducibility record
+
+- Upstream scored graph: Roman Tamrazov,
+  [RSNA Knee | DINOsaur V4](https://www.kaggle.com/code/romantamrazov/rsna-knee-dinosaur-v4),
+  public Version 14, Apache-2.0.
+- Packaged and independently rerun in this notebook by **prvsiyan**; the four
+  model cells are hash-audited against the historical public source, with the
+  two mount/runtime packaging corrections disclosed above.
+- External model and dataset owners remain visible in Kaggle's **Inputs** panel;
+  their original licenses and provenance are not overwritten by this notebook.
+- Competition research only. **Not a medical device and not for diagnosis.**

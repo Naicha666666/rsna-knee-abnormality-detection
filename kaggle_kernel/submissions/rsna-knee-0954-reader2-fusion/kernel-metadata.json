@@ -1,0 +1,21 @@
+{
+  "id": "easonyanyan/rsna-knee-0954-reader2-fusion",
+  "title": "RSNA Knee 0954 Reader2 Fusion",
+  "code_file": "rsna-knee-0954-reader2-fusion.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "heliosli/rsna-knee-compact-v1",
+    "easonyanyan/rsna-knee-ortho-reader2-cnxv2base-weights"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": []
+}

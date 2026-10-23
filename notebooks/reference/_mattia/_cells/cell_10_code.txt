@@ -1,0 +1,73 @@
+ORDER_CACHE = os.environ.get('RSNA_ORDER_CACHE') or None
+
+def build_cache(slot_map, plane_map, lat_map, tag):
+    studies = sorted(slot_map)
+    sidx = {s: i for i, s in enumerate(studies)}
+    cache = np.zeros((len(studies), N_SLOT, CACHE_SLICES, IMG, IMG), np.uint8)
+    mask = np.zeros((len(studies), N_SLOT), np.float32)
+    log(f'{tag}: cache {cache.shape} = {cache.nbytes / 1024 ** 3:.1f} GB')
+    jobs = [(st, k, plane, slot_map[st][name]) for st in studies for k, (name, plane, _, _) in enumerate(SLOTS) if name in slot_map[st]]
+    n_job = len(jobs)
+    t_ord = time.time()
+    n_slice_total = sum((len(j[3]['files']) for j in jobs))
+    log(f'{tag}: ordering {len(jobs)} slot-series ({n_slice_total} slice headers)')
+    ok = done = 0
+    CHUNK_O = 1024
+    seen = {}
+    if ORDER_CACHE and Path(ORDER_CACHE).is_file():
+        try:
+            import json as _json
+            seen = _json.loads(Path(ORDER_CACHE).read_text())
+        except (OSError, ValueError):
+            seen = {}
+        hit = 0
+        for _, _, _, rec in jobs:
+            e = seen.get(rec['SeriesInstanceUID'])
+            if e and len(e['files']) == len(rec['files']):
+                rec['ordered'] = e['files']
+                ok += int(e['good'])
+                hit += 1
+        jobs = [j for j in jobs if 'ordered' not in j[3]]
+        log(f'{tag}: {hit} slot-series ordered from {ORDER_CACHE}, {len(jobs)} to read')
+    with ThreadPoolExecutor(max_workers=ORDER_THREADS) as pool:
+        for c0 in range(0, len(jobs), CHUNK_O):
+            block = jobs[c0:c0 + CHUNK_O]
+            for (_, _, _, rec), (files, good) in zip(block, pool.map(lambda j: order_slices(j[3]), block)):
+                rec['ordered'] = files
+                ok += int(good)
+                done += 1
+                if ORDER_CACHE:
+                    seen[rec['SeriesInstanceUID']] = {'files': files, 'good': bool(good)}
+            budget = min(ORDER_BUDGET_S, max(60.0, (TIME_BUDGET - (time.time() - T0)) * 0.35))
+            if time.time() - t_ord > budget:
+                log(f'{tag}: ordering budget spent at {done}/{len(jobs)}; the rest keep file order')
+                break
+    if ORDER_CACHE and done:
+        import json as _json
+        _t = Path(ORDER_CACHE).with_suffix('.tmp')
+        _t.write_text(_json.dumps(seen))
+        _t.replace(Path(ORDER_CACHE))
+    log(f'{tag}: ordered {ok}/{n_job} by geometry ({n_job - ok} kept arbitrary) in {time.time() - t_ord:.0f}s')
+    jobs = [(st, k, plane, slot_map[st][name]) for st in studies for k, (name, plane, _, _) in enumerate(SLOTS) if name in slot_map[st]]
+    log(f'{tag}: decoding {len(jobs)} slot-series')
+    n_failed_before = len(DECODE_FAILED)
+    CHUNK = 512
+    done = 0
+    with ThreadPoolExecutor(max_workers=PIX_THREADS) as pool:
+        for c0 in range(0, len(jobs), CHUNK):
+            block = jobs[c0:c0 + CHUNK]
+            for (st, k, plane, _), img in zip(block, pool.map(lambda j: read_slot(j[3], CACHE_SLICES, IMG), block)):
+                done += 1
+                if img is None:
+                    continue
+                cache[sidx[st], k] = normalise_laterality(img, plane, lat_map.get(st)).numpy()
+                mask[sidx[st], k] = 1.0
+            if done % 4096 < CHUNK:
+                log(f'  {tag} {done}/{len(jobs)}')
+            if time.time() - T0 > TIME_BUDGET:
+                log(f'  {tag}: time budget reached during decode')
+                break
+    n_failed = len(DECODE_FAILED) - n_failed_before
+    log(f'{tag}: {int(mask.sum())}/{len(jobs)} slots filled' + (f'; {n_failed} series had a slice that would not decode' if n_failed else ''))
+    gc.collect()
+    return (studies, cache, mask)

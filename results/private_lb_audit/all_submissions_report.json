@@ -1,0 +1,142 @@
+[
+  {
+    "ref": "57505099",
+    "date": "2026-10-22 01:47:58",
+    "public_score": 0.956,
+    "private_score": 0.941,
+    "description": "EX-D4 v1: v4 + D4 per-finding spatial attention mask (Stage-1 Raptor, PF OA/LatOA/Synovitis/MCL)"
+  },
+  {
+    "ref": "57419994",
+    "date": "2026-10-20 03:21:36",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "RSNA Knee EX-C v1: single variable = Part B per-finding weights raised on 3 gold58-favoured findings (Contusion 0.10, Synovitis 0.03, Baker 0.05) on Super-Fusion v4 base (0.958)"
+  },
+  {
+    "ref": "57406028",
+    "date": "2026-10-19 18:43:14",
+    "public_score": 0.957,
+    "private_score": 0.942,
+    "description": "RSNA Knee EX-A v5: Raptor-half widening +0.30 dread maxspan-v5 (A4ARM prereg; 0 failures; fallback preserved)"
+  },
+  {
+    "ref": "57404971",
+    "date": "2026-10-19 18:01:39",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "RSNA Knee EX-B v2: ours-half CoAt reinforcement w=0.25 (resgated top3 member; prereg 10-19; fallback preserved)"
+  },
+  {
+    "ref": "57391433",
+    "date": "2026-10-19 09:35:12",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "Notebook RSNA Knee heliosli exact v1 | Version 2"
+  },
+  {
+    "ref": "57335359",
+    "date": "2026-10-18 02:42:17",
+    "public_score": 0.957,
+    "private_score": 0.941,
+    "description": "RSNA"
+  },
+  {
+    "ref": "57332149",
+    "date": "2026-10-18 00:47:31",
+    "public_score": 0.957,
+    "private_score": 0.941,
+    "description": "RSNA Knee 0.958 Plane Pure v6: pure anatomical-plane read-out (sag/cor/axi rank-average, no full-pool member) + Polar Specialist + Part B + Anti-Tie"
+  },
+  {
+    "ref": "57330799",
+    "date": "2026-10-18 00:08:17",
+    "public_score": 0.957,
+    "private_score": 0.941,
+    "description": "RSNA Knee 0.958 Plane-Routed v5: Stage-1 read-out split by anatomical plane (sag/cor/axi rank-average, prior fixed before run) + Polar Specialist + Part B + Anti-Tie"
+  },
+  {
+    "ref": "57318277",
+    "date": "2026-10-17 16:33:57",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "RSNA Knee 0.958+ Super-Fusion v4: Dual-Arm Raptor (0.80 Nartaa + 0.20 Own Ep8 0.948 Solo) + R6 Flip + 2.5D MIL + Anti-Tie"
+  },
+  {
+    "ref": "57318268",
+    "date": "2026-10-17 16:33:36",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "RSNA Knee 0.958+ Super-Fusion v3: Polar Specialist 0.9586 + Part B 2.5D MIL + Anti-Tie 90/10"
+  },
+  {
+    "ref": "57279167",
+    "date": "2026-10-16 18:22:06",
+    "public_score": 0.952,
+    "private_score": 0.936,
+    "description": "RSNA Knee 0.958+ Super-Fusion v2: 58-Gold Data-Driven 12-Target Matrix + Dual Mirror Raptor + R6 Flip TTA + Anti-Tie + Part B"
+  },
+  {
+    "ref": "57276435",
+    "date": "2026-10-16 16:52:37",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "RSNA Knee 0.958+ Super-Fusion v1: Dual Mirror Raptor + R6 Flip TTA + 12-Target Anti-Tie + 2.5D MIL Reader"
+  },
+  {
+    "ref": "57252307",
+    "date": "2026-10-16 02:49:34",
+    "public_score": 0.958,
+    "private_score": 0.942,
+    "description": "RSNA Knee 0.957 SOTA: heliosli reweight5 [Syn 0.80, Latoa 0.20, PFOA 0.60, Baker 0.35] + R6-w1 + Anti-Tie 90/10"
+  },
+  {
+    "ref": "57248143",
+    "date": "2026-10-16 00:07:49",
+    "public_score": 0.956,
+    "private_score": 0.941,
+    "description": "RSNA Knee 0.957+ SOTA: Raptor-384 Mirror + Raptor-224 Mirror TTA + R7 ConvNeXt 4-Fold + Continuous Anti-Tie 90/10 Fusion"
+  },
+  {
+    "ref": "57237676",
+    "date": "2026-10-15 16:38:07",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "Specialist AUC Quad-Arm Hedge Ensemble (v3)"
+  },
+  {
+    "ref": "57229496",
+    "date": "2026-10-15 12:03:47",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "Tri-Source Hedge Candidate on snowy615: Stage-1 3-arm ms-ep8 [r384 w0.55 + r224 w0.15 + ep8 w0.30] + Stage-2 dual-group r7 + compact-v1 nostack + Stage-3 0.5/0.5"
+  },
+  {
+    "ref": "57217523",
+    "date": "2026-10-15 05:20:17",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "Candidate 2: 0.956 two-stage de-homogenized hedge on georgexue666 (Stage-1: 3-arm ms-ep8 [r384 w0.55 + r224 w0.15 + ep8 w0.30]; Stage-2: dual-group r7 + compact-v1 nostack; Stage-3: 0.5/0.5)"
+  },
+  {
+    "ref": "57214784",
+    "date": "2026-10-15 03:32:31",
+    "public_score": 0.956,
+    "private_score": 0.941,
+    "description": "0.9573 replication on snowy615: Stage 1 = nartaa raptor 384 SWA (sha256 7e5315da), Stage 1b = raptor c08_r224_swa (sha256 3394fdd7, coatnet_rmlp_2_rw_224, CROP_FRAC 0.8 bilinearly resized to 224, single view, own process). Stage 2 = compact-r7cnxfsss (bundle 8c7b666e, 4 folds, both stackers). Stage 3 = rank blend 0.5*R7 + 0.5*(0.65*rank384 + 0.35*rank224). All weights fixed, zero leak."
+  },
+  {
+    "ref": "57187505",
+    "date": "2026-10-14 15:39:13",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "Notebook R7 + Raptor + knee-centred ConvNeXt | Version 1"
+  },
+  {
+    "ref": "57186664",
+    "date": "2026-10-14 15:09:01",
+    "public_score": 0.956,
+    "private_score": 0.94,
+    "description": "0.956 de-homogenized hedge (two-stage structural divergence): Stage-1 = 3 arms [nartaa raptor r384@320 w0.55 + same-family c08_r224@224 w0.15 + our WarmStart Ep8 CoAtNet-2 w0.30] via the native ARMS weighted machinery; Stage-2 = DUAL GROUP (r7 + compact-v1) on the native --models2 logit path with the fitted stackers OFF (r7's stacker json is single-group fitted). Stage-3 unchanged 0.5/0.5. Every prior single-variable probe (Stage-1 2nd arm, Stage-2 stacker/dual-group, Stage-3 per-label tilt) tied at 0.956; this is the only config that changes BOTH stages at once -> private-LB de-homogenization hedge."
+  }
+]

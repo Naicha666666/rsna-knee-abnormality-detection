@@ -1,0 +1,49 @@
+{
+  "anchor": "Speedy Raptors 0.942 anchor",
+  "candidate_alphas": [
+    0.2,
+    0.35,
+    0.5
+  ],
+  "default_alpha": 0.35,
+  "inner_coat_mix": {
+    "public_raptor": 0.6,
+    "resgated_d4_family": 0.4
+  },
+  "outer_target_weights": {
+    "ACL": 0.75,
+    "Baker's": 0.6,
+    "Contusion": 0.7,
+    "Effusion": 0.6,
+    "Fracture": 0.75,
+    "Lateral Meniscus": 1.0,
+    "Lateral OA": 0.75,
+    "MCL": 0.6,
+    "Medial Meniscus": 0.8,
+    "Medial OA": 0.6,
+    "PF OA": 0.6,
+    "Synovitis": 0.6
+  },
+  "prob_vs_rankmean_corr": {
+    "ACL": 0.49999999999999983,
+    "Baker's": 0.9999999999999999,
+    "Contusion": 0.9999999999999999,
+    "Effusion": 0.9999999999999999,
+    "Fracture": 0.9999999999999999,
+    "Lateral Meniscus": 0.9999999999999999,
+    "Lateral OA": 0.9999999999999999,
+    "MCL": 0.9999999999999999,
+    "Medial Meniscus": 0.9999999999999999,
+    "Medial OA": 0.9999999999999999,
+    "PF OA": 0.9999999999999999,
+    "Synovitis": 0.9999999999999999
+  },
+  "raptor_weights": [
+    0.6,
+    0.1,
+    0.1,
+    0.2
+  ],
+  "synovitis_effusion_gamma": 0.2,
+  "title": "RSNA Knee | 0.943 Hybrid Consensus & Clinical Calibration"
+}

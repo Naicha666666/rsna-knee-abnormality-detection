@@ -1,0 +1,21 @@
+{
+  "id": "easonyanyan/rsna-knee-c7-infer-64slice",
+  "title": "RSNA Knee C7 infer 64slice",
+  "code_file": "run.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "machine_shape": "NvidiaTeslaT4",
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-c7-weights",
+    "easonyanyan/timm-coatnet-rmlp2-384"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}

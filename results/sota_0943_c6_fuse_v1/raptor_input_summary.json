@@ -1,0 +1,15 @@
+{
+  "studies": 3,
+  "preparations": 9,
+  "view_names": [
+    "maxspan-v5",
+    "native384dense-v10",
+    "maxspan-v5-reverse",
+    "native384-v8"
+  ],
+  "shared_preparation_views": [
+    "maxspan-v5",
+    "maxspan-v5-reverse"
+  ],
+  "records": "/kaggle/working/diagnostics/raptor_inputs.jsonl"
+}

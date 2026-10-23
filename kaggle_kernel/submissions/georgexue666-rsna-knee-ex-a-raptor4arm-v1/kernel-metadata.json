@@ -1,0 +1,22 @@
+{
+  "id": "georgexue666/rsna-knee-ex-a-raptor4arm-v1",
+  "title": "RSNA Knee Ex A Raptor4Arm V1",
+  "code_file": "rsna-knee-ex-a-raptor4arm-v1.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "dataset_sources": [
+    "rostigor/rsna-knee-r6-fe055406",
+    "nartaa/rsna-knee-publication-swa-weights-20261007",
+    "heliosli/rsna-orthofoundation-fold0-epoch7-20261004",
+    "goodpjw2008/rsna-knee-2-5d-convnext-reader",
+    "dreaddevelopment/raptor-knee-maxspan"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "machine_shape": "NvidiaTeslaT4"
+}

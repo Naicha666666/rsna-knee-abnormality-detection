@@ -1,0 +1,27 @@
+{
+  "id": "easonyanyan/rsna-knee-native-shared-cache-quad-ensemble",
+  "title": "RSNA Knee Native Shared-Cache Quad Ensemble",
+  "code_file": "rsna-knee-native-shared-cache-quad-ensemble.py",
+  "language": "python",
+  "kernel_type": "script",
+  "is_private": true,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "machine_shape": "NvidiaTeslaT4",
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "dataset_sources": [
+    "easonyanyan/rsna-knee-c6-weights",
+    "easonyanyan/rsna-knee-c14-weights",
+    "easonyanyan/rsna-knee-c12-weights",
+    "easonyanyan/rsna-knee-pf1-weights"
+  ],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "kernel_sources": [],
+  "model_sources": []
+}

@@ -1,0 +1,16 @@
+{
+  "contract": "public_raptor_private_residual_coat_v32_no_inner_rerank_v1",
+  "finding_specific_weights": false,
+  "inner_rerank": false,
+  "members": [
+    "resgated_top3",
+    "d4_swa3"
+  ],
+  "private_alpha": 0.4,
+  "public_raptor_alpha": 0.6,
+  "study_count": 3,
+  "within_coat": {
+    "d4_swa3": 0.5,
+    "resgated_top3": 0.5
+  }
+}

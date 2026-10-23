@@ -1,0 +1,71 @@
+# Twelve findings, four branches, one header pass
+
+### A restructured 0.936 inference pipeline - and a harness for deciding what to change next
+
+The score here is **macro ROC-AUC over twelve binary findings**, on a hidden test
+split, in a nine-hour offline kernel. That one sentence decides most of what follows.
+
+Under ROC-AUC only the *ordering inside each column* is scored. A monotone transform
+of a column changes nothing: rank, sigmoid, calibration, clipping - all free, all
+invisible. Two things do move the number:
+
+1. **Which study sits above which** - the ensemble and its weights.
+2. **Studies that could not be scored at all.** They get a constant, and a block of
+   tied scores earns half credit against every study it ties with. A tie block is the
+   most expensive thing in a pipeline like this and the easiest one to miss.
+
+Both are measured explicitly here rather than assumed.
+
+---
+
+## What this notebook is
+
+An inference pipeline fusing four independently-trained branches:
+
+| Branch | Model | Preprocessing | Role in the blend |
+|---|---|---|---|
+| **A** | DINOv2-S/14 + per-finding slot attention | 6 slots (plane x contrast x fat-sat), 336 px, 130 mm crop | base vote |
+| **B** | timm fold ensemble | 6 slots, 16 slices, 336 px | 0.45 against A |
+| **C** | RadImageNet ResNet-50 + attention heads, three slot views | 224 px, 8 slices per plane | 0.50 on ten findings, then a 0.15 second pass, then an 88-feature calibrator |
+| **D** | CoAtNet-RMLP-2 over 3-slice windows | 5 slots, 64 slices, 140 mm crop, 62 windows | ~0.50 per finding, correlation-gated |
+
+The weights and the fusion arithmetic come from the upstream public checkpoint and
+reproduce **0.936**. Full credit and licensing at the bottom: the models are not
+mine, the pipeline around them is.
+
+## What is different here
+
+**One header pass instead of four.** The store holds roughly 800k slice headers. The
+original walked the tree four times and read every header at least three times: once
+for branch A's slice ordering, once per branch C cache build (three of those), and
+again inside branch D. Cell 2 walks once, reads each header once into a typed index,
+and derives all four slice-ordering dialects - normal, dominant-axis, InstanceNumber,
+position - from that single pass.
+
+**One decode sweep where the views overlap.** Branch C's three slot views share the
+same fat-saturated series with the same band and slice count. `build_caches` takes a
+*list* of specs and fills whichever fit in the memory budget together, so a slice is
+decoded once instead of three times.
+
+**Dead work removed.** Branch A used to compute a jittered prediction, a frontier
+vote and a five-fold soft blend, then overwrite `submission.csv` with the frontier
+vote and `unlink()` the other two. Only the surviving path is computed.
+
+**No mutating globals.** `adopt_config_globals`, three `globals().update(...)` calls
+and a snapshot/restore of the entire global namespace are replaced by an immutable
+`PixelSpec` handed to the builders. Cell order no longer changes what a model
+computes.
+
+**A way to decide the next change.** Every blend weight lives in one `TUNING` dict,
+and `RSNA_MODE=validate` reruns the pipeline on the gold-labelled studies and scores
+it offline with bootstrap win-rates and weight sweeps (cell 13). The leaderboard is a
+scarce oracle; this is how to stop spending it.
+
+## How to read the rest
+
+Cells 1-3 are infrastructure (config, shared index, volume construction). Cells 4-6
+are model definitions. Cells 7-10 are the four branches. Cell 11 fuses. Cell 12
+reports coverage, tie blocks and branch agreement. Cell 13 validates offline.
+
+To experiment: change one entry in `TUNING` or `FLAGS` in cell 1, run with
+`RSNA_MODE=validate`, and check the bootstrap win-rate before spending a submission.

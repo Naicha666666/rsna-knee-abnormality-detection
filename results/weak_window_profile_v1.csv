@@ -1,0 +1,497 @@
+model,label,centre,slot,auc_window,att_mass
+c6r,PF OA,1,SagF,0.6139,0.0053
+c6r,PF OA,2,SagF,0.7477,0.0101
+c6r,PF OA,3,SagF,0.8134,0.0147
+c6r,PF OA,4,SagF,0.8108,0.0198
+c6r,PF OA,5,SagF,0.8288,0.0241
+c6r,PF OA,6,SagF,0.8417,0.0322
+c6r,PF OA,7,SagF,0.843,0.0473
+c6r,PF OA,8,SagF,0.8533,0.0682
+c6r,PF OA,9,SagF,0.8739,0.0727
+c6r,PF OA,10,SagF,0.8263,0.0642
+c6r,PF OA,11,SagF,0.758,0.047
+c6r,PF OA,12,SagF,0.7568,0.0375
+c6r,PF OA,13,SagF,0.704,0.0295
+c6r,PF OA,14,SagF,0.6782,0.0242
+c6r,PF OA,15,SagF,0.6422,0.0188
+c6r,PF OA,16,SagF,0.6834,0.0121
+c6r,PF OA,17,SagF,0.6577,0.0041
+c6r,PF OA,18,SagS,0.7194,0.0019
+c6r,PF OA,19,SagS,0.7304,0.0034
+c6r,PF OA,20,SagS,0.7059,0.0071
+c6r,PF OA,21,SagS,0.76,0.0138
+c6r,PF OA,22,SagS,0.7947,0.0204
+c6r,PF OA,23,SagS,0.7304,0.0258
+c6r,PF OA,24,SagS,0.742,0.0376
+c6r,PF OA,25,SagS,0.7523,0.0421
+c6r,PF OA,26,SagS,0.6995,0.0369
+c6r,PF OA,27,SagS,0.6364,0.0284
+c6r,PF OA,28,SagS,0.648,0.021
+c6r,PF OA,29,SagS,0.666,0.0134
+c6r,PF OA,30,SagS,0.5991,0.0068
+c6r,PF OA,31,SagS,0.6332,0.0019
+c6r,PF OA,32,CorF,0.6139,0.0015
+c6r,PF OA,33,CorF,0.6911,0.0033
+c6r,PF OA,34,CorF,0.7079,0.0041
+c6r,PF OA,35,CorF,0.74,0.0065
+c6r,PF OA,36,CorF,0.7696,0.0092
+c6r,PF OA,37,CorF,0.7799,0.0107
+c6r,PF OA,38,CorF,0.7619,0.009
+c6r,PF OA,39,CorF,0.7349,0.0077
+c6r,PF OA,40,CorF,0.7568,0.006
+c6r,PF OA,41,CorF,0.7465,0.0048
+c6r,PF OA,42,CorF,0.7259,0.0031
+c6r,PF OA,43,CorF,0.695,0.0013
+c6r,PF OA,44,CorS,0.6911,0.0008
+c6r,PF OA,45,CorS,0.7284,0.0014
+c6r,PF OA,46,CorS,0.7091,0.0015
+c6r,PF OA,47,CorS,0.7645,0.003
+c6r,PF OA,48,CorS,0.7349,0.0035
+c6r,PF OA,49,CorS,0.7851,0.0032
+c6r,PF OA,50,CorS,0.7246,0.0016
+c6r,PF OA,51,CorS,0.6692,0.0012
+c6r,PF OA,52,Ax,0.6937,0.0032
+c6r,PF OA,53,Ax,0.722,0.0073
+c6r,PF OA,54,Ax,0.6448,0.0086
+c6r,PF OA,55,Ax,0.6692,0.0109
+c6r,PF OA,56,Ax,0.6345,0.0112
+c6r,PF OA,57,Ax,0.722,0.0133
+c6r,PF OA,58,Ax,0.7284,0.0153
+c6r,PF OA,59,Ax,0.7181,0.0164
+c6r,PF OA,60,Ax,0.7555,0.0148
+c6r,PF OA,61,Ax,0.7259,0.0129
+c6r,PF OA,62,Ax,0.7387,0.0104
+c6r,Synovitis,1,SagF,0.718,0.0114
+c6r,Synovitis,2,SagF,0.6894,0.016
+c6r,Synovitis,3,SagF,0.7372,0.0214
+c6r,Synovitis,4,SagF,0.7658,0.0257
+c6r,Synovitis,5,SagF,0.7706,0.0278
+c6r,Synovitis,6,SagF,0.7754,0.03
+c6r,Synovitis,7,SagF,0.7467,0.0317
+c6r,Synovitis,8,SagF,0.7706,0.0379
+c6r,Synovitis,9,SagF,0.7718,0.037
+c6r,Synovitis,10,SagF,0.7634,0.0359
+c6r,Synovitis,11,SagF,0.7539,0.0355
+c6r,Synovitis,12,SagF,0.7252,0.0345
+c6r,Synovitis,13,SagF,0.7192,0.0285
+c6r,Synovitis,14,SagF,0.7587,0.0234
+c6r,Synovitis,15,SagF,0.7646,0.0201
+c6r,Synovitis,16,SagF,0.7754,0.0159
+c6r,Synovitis,17,SagF,0.6499,0.0107
+c6r,Synovitis,18,SagS,0.5866,0.0084
+c6r,Synovitis,19,SagS,0.6786,0.005
+c6r,Synovitis,20,SagS,0.6368,0.0059
+c6r,Synovitis,21,SagS,0.6356,0.0087
+c6r,Synovitis,22,SagS,0.6296,0.0099
+c6r,Synovitis,23,SagS,0.601,0.0103
+c6r,Synovitis,24,SagS,0.5795,0.0116
+c6r,Synovitis,25,SagS,0.675,0.0115
+c6r,Synovitis,26,SagS,0.7407,0.0114
+c6r,Synovitis,27,SagS,0.7085,0.0103
+c6r,Synovitis,28,SagS,0.7802,0.0092
+c6r,Synovitis,29,SagS,0.7025,0.0075
+c6r,Synovitis,30,SagS,0.767,0.0052
+c6r,Synovitis,31,SagS,0.6655,0.0063
+c6r,Synovitis,32,CorF,0.718,0.0132
+c6r,Synovitis,33,CorF,0.6487,0.0219
+c6r,Synovitis,34,CorF,0.7049,0.0273
+c6r,Synovitis,35,CorF,0.7109,0.0311
+c6r,Synovitis,36,CorF,0.7419,0.0288
+c6r,Synovitis,37,CorF,0.7168,0.0208
+c6r,Synovitis,38,CorF,0.73,0.0128
+c6r,Synovitis,39,CorF,0.6559,0.0098
+c6r,Synovitis,40,CorF,0.7097,0.009
+c6r,Synovitis,41,CorF,0.6679,0.0098
+c6r,Synovitis,42,CorF,0.6762,0.0105
+c6r,Synovitis,43,CorF,0.5866,0.0091
+c6r,Synovitis,44,CorS,0.5603,0.013
+c6r,Synovitis,45,CorS,0.5651,0.0111
+c6r,Synovitis,46,CorS,0.5281,0.012
+c6r,Synovitis,47,CorS,0.6272,0.0108
+c6r,Synovitis,48,CorS,0.5902,0.005
+c6r,Synovitis,49,CorS,0.552,0.0042
+c6r,Synovitis,50,CorS,0.5448,0.005
+c6r,Synovitis,51,CorS,0.5078,0.0062
+c6r,Synovitis,52,Ax,0.6667,0.0045
+c6r,Synovitis,53,Ax,0.6714,0.0064
+c6r,Synovitis,54,Ax,0.6774,0.0077
+c6r,Synovitis,55,Ax,0.693,0.0083
+c6r,Synovitis,56,Ax,0.6631,0.0104
+c6r,Synovitis,57,Ax,0.5974,0.0136
+c6r,Synovitis,58,Ax,0.5986,0.0169
+c6r,Synovitis,59,Ax,0.6069,0.0215
+c6r,Synovitis,60,Ax,0.6344,0.0245
+c6r,Synovitis,61,Ax,0.6786,0.0263
+c6r,Synovitis,62,Ax,0.7575,0.0238
+c6r,Lateral OA,1,SagF,0.6615,0.0078
+c6r,Lateral OA,2,SagF,0.7563,0.0135
+c6r,Lateral OA,3,SagF,0.7621,0.0256
+c6r,Lateral OA,4,SagF,0.7679,0.0333
+c6r,Lateral OA,5,SagF,0.6712,0.035
+c6r,Lateral OA,6,SagF,0.6499,0.0336
+c6r,Lateral OA,7,SagF,0.617,0.0334
+c6r,Lateral OA,8,SagF,0.6654,0.0287
+c6r,Lateral OA,9,SagF,0.6402,0.0287
+c6r,Lateral OA,10,SagF,0.6634,0.031
+c6r,Lateral OA,11,SagF,0.7389,0.0389
+c6r,Lateral OA,12,SagF,0.7795,0.0488
+c6r,Lateral OA,13,SagF,0.7602,0.0478
+c6r,Lateral OA,14,SagF,0.7698,0.0451
+c6r,Lateral OA,15,SagF,0.7872,0.0355
+c6r,Lateral OA,16,SagF,0.7737,0.0207
+c6r,Lateral OA,17,SagF,0.7447,0.0051
+c6r,Lateral OA,18,SagS,0.8259,0.0029
+c6r,Lateral OA,19,SagS,0.8704,0.0053
+c6r,Lateral OA,20,SagS,0.8259,0.0117
+c6r,Lateral OA,21,SagS,0.8259,0.026
+c6r,Lateral OA,22,SagS,0.7524,0.0323
+c6r,Lateral OA,23,SagS,0.7853,0.0276
+c6r,Lateral OA,24,SagS,0.7969,0.0239
+c6r,Lateral OA,25,SagS,0.795,0.0237
+c6r,Lateral OA,26,SagS,0.793,0.0285
+c6r,Lateral OA,27,SagS,0.7872,0.0373
+c6r,Lateral OA,28,SagS,0.8549,0.0399
+c6r,Lateral OA,29,SagS,0.8008,0.0298
+c6r,Lateral OA,30,SagS,0.7988,0.0138
+c6r,Lateral OA,31,SagS,0.7447,0.0023
+c6r,Lateral OA,32,CorF,0.7718,0.001
+c6r,Lateral OA,33,CorF,0.7795,0.0019
+c6r,Lateral OA,34,CorF,0.7137,0.0022
+c6r,Lateral OA,35,CorF,0.7273,0.004
+c6r,Lateral OA,36,CorF,0.8549,0.0092
+c6r,Lateral OA,37,CorF,0.824,0.0155
+c6r,Lateral OA,38,CorF,0.793,0.0192
+c6r,Lateral OA,39,CorF,0.8549,0.0165
+c6r,Lateral OA,40,CorF,0.8317,0.012
+c6r,Lateral OA,41,CorF,0.7582,0.0086
+c6r,Lateral OA,42,CorF,0.7544,0.0049
+c6r,Lateral OA,43,CorF,0.7311,0.0018
+c6r,Lateral OA,44,CorS,0.6402,0.0006
+c6r,Lateral OA,45,CorS,0.6673,0.001
+c6r,Lateral OA,46,CorS,0.6654,0.0012
+c6r,Lateral OA,47,CorS,0.7389,0.0035
+c6r,Lateral OA,48,CorS,0.7505,0.0076
+c6r,Lateral OA,49,CorS,0.7524,0.0055
+c6r,Lateral OA,50,CorS,0.6596,0.0021
+c6r,Lateral OA,51,CorS,0.6712,0.0008
+c6r,Lateral OA,52,Ax,0.6383,0.0018
+c6r,Lateral OA,53,Ax,0.677,0.0043
+c6r,Lateral OA,54,Ax,0.648,0.0052
+c6r,Lateral OA,55,Ax,0.7002,0.006
+c6r,Lateral OA,56,Ax,0.6209,0.0059
+c6r,Lateral OA,57,Ax,0.5899,0.0068
+c6r,Lateral OA,58,Ax,0.6634,0.0074
+c6r,Lateral OA,59,Ax,0.7021,0.008
+c6r,Lateral OA,60,Ax,0.7969,0.0071
+c6r,Lateral OA,61,Ax,0.7718,0.006
+c6r,Lateral OA,62,Ax,0.795,0.0049
+c6r,Lateral Meniscus,1,SagF,0.6807,0.0116
+c6r,Lateral Meniscus,2,SagF,0.6609,0.0141
+c6r,Lateral Meniscus,3,SagF,0.6932,0.0451
+c6r,Lateral Meniscus,4,SagF,0.6745,0.0496
+c6r,Lateral Meniscus,5,SagF,0.6658,0.0486
+c6r,Lateral Meniscus,6,SagF,0.6919,0.0379
+c6r,Lateral Meniscus,7,SagF,0.7354,0.0331
+c6r,Lateral Meniscus,8,SagF,0.7665,0.0199
+c6r,Lateral Meniscus,9,SagF,0.6683,0.0193
+c6r,Lateral Meniscus,10,SagF,0.5963,0.0218
+c6r,Lateral Meniscus,11,SagF,0.5925,0.0358
+c6r,Lateral Meniscus,12,SagF,0.7006,0.0587
+c6r,Lateral Meniscus,13,SagF,0.7565,0.078
+c6r,Lateral Meniscus,14,SagF,0.7578,0.0708
+c6r,Lateral Meniscus,15,SagF,0.7292,0.0658
+c6r,Lateral Meniscus,16,SagF,0.7217,0.0283
+c6r,Lateral Meniscus,17,SagF,0.6236,0.0054
+c6r,Lateral Meniscus,18,SagS,0.5925,0.0016
+c6r,Lateral Meniscus,19,SagS,0.6217,0.0059
+c6r,Lateral Meniscus,20,SagS,0.6553,0.0093
+c6r,Lateral Meniscus,21,SagS,0.7062,0.0244
+c6r,Lateral Meniscus,22,SagS,0.7037,0.0214
+c6r,Lateral Meniscus,23,SagS,0.5919,0.0143
+c6r,Lateral Meniscus,24,SagS,0.5857,0.0088
+c6r,Lateral Meniscus,25,SagS,0.5696,0.0081
+c6r,Lateral Meniscus,26,SagS,0.5509,0.0125
+c6r,Lateral Meniscus,27,SagS,0.5609,0.0322
+c6r,Lateral Meniscus,28,SagS,0.6391,0.0303
+c6r,Lateral Meniscus,29,SagS,0.6925,0.027
+c6r,Lateral Meniscus,30,SagS,0.6689,0.0118
+c6r,Lateral Meniscus,31,SagS,0.6224,0.0009
+c6r,Lateral Meniscus,32,CorF,0.6696,0.0005
+c6r,Lateral Meniscus,33,CorF,0.6696,0.001
+c6r,Lateral Meniscus,34,CorF,0.6944,0.0011
+c6r,Lateral Meniscus,35,CorF,0.7019,0.0025
+c6r,Lateral Meniscus,36,CorF,0.7379,0.0086
+c6r,Lateral Meniscus,37,CorF,0.7404,0.0185
+c6r,Lateral Meniscus,38,CorF,0.7677,0.0273
+c6r,Lateral Meniscus,39,CorF,0.7429,0.0193
+c6r,Lateral Meniscus,40,CorF,0.6932,0.0121
+c6r,Lateral Meniscus,41,CorF,0.6857,0.0086
+c6r,Lateral Meniscus,42,CorF,0.6298,0.0058
+c6r,Lateral Meniscus,43,CorF,0.6224,0.0022
+c6r,Lateral Meniscus,44,CorS,0.6534,0.0004
+c6r,Lateral Meniscus,45,CorS,0.641,0.0003
+c6r,Lateral Meniscus,46,CorS,0.5925,0.0003
+c6r,Lateral Meniscus,47,CorS,0.7391,0.0012
+c6r,Lateral Meniscus,48,CorS,0.759,0.0057
+c6r,Lateral Meniscus,49,CorS,0.7118,0.0055
+c6r,Lateral Meniscus,50,CorS,0.6596,0.0013
+c6r,Lateral Meniscus,51,CorS,0.5043,0.0004
+c6r,Lateral Meniscus,52,Ax,0.564,0.0007
+c6r,Lateral Meniscus,53,Ax,0.6137,0.0013
+c6r,Lateral Meniscus,54,Ax,0.6261,0.0015
+c6r,Lateral Meniscus,55,Ax,0.6273,0.0016
+c6r,Lateral Meniscus,56,Ax,0.5503,0.0017
+c6r,Lateral Meniscus,57,Ax,0.4981,0.0023
+c6r,Lateral Meniscus,58,Ax,0.5578,0.0029
+c6r,Lateral Meniscus,59,Ax,0.6,0.0035
+c6r,Lateral Meniscus,60,Ax,0.672,0.0034
+c6r,Lateral Meniscus,61,Ax,0.713,0.0033
+c6r,Lateral Meniscus,62,Ax,0.6857,0.003
+c10,PF OA,1,SagF,0.6873,0.0116
+c10,PF OA,2,SagF,0.6821,0.0129
+c10,PF OA,3,SagF,0.758,0.0153
+c10,PF OA,4,SagF,0.7593,0.0184
+c10,PF OA,5,SagF,0.7902,0.0241
+c10,PF OA,6,SagF,0.7683,0.0308
+c10,PF OA,7,SagF,0.8224,0.0356
+c10,PF OA,8,SagF,0.8095,0.0453
+c10,PF OA,9,SagF,0.8687,0.04
+c10,PF OA,10,SagF,0.7992,0.0366
+c10,PF OA,11,SagF,0.8404,0.0326
+c10,PF OA,12,SagF,0.8147,0.0282
+c10,PF OA,13,SagF,0.7992,0.0236
+c10,PF OA,14,SagF,0.7799,0.0202
+c10,PF OA,15,SagF,0.7619,0.0171
+c10,PF OA,16,SagF,0.6409,0.0135
+c10,PF OA,17,SagF,0.7027,0.008
+c10,PF OA,18,SagS,0.5354,0.0053
+c10,PF OA,19,SagS,0.6557,0.0066
+c10,PF OA,20,SagS,0.6853,0.009
+c10,PF OA,21,SagS,0.7432,0.0127
+c10,PF OA,22,SagS,0.7741,0.0176
+c10,PF OA,23,SagS,0.7329,0.0237
+c10,PF OA,24,SagS,0.778,0.0271
+c10,PF OA,25,SagS,0.8282,0.0309
+c10,PF OA,26,SagS,0.7896,0.0267
+c10,PF OA,27,SagS,0.7252,0.0229
+c10,PF OA,28,SagS,0.6647,0.0181
+c10,PF OA,29,SagS,0.7175,0.0136
+c10,PF OA,30,SagS,0.6763,0.009
+c10,PF OA,31,SagS,0.6731,0.0056
+c10,PF OA,32,CorF,0.5869,0.0058
+c10,PF OA,33,CorF,0.695,0.0105
+c10,PF OA,34,CorF,0.7181,0.0103
+c10,PF OA,35,CorF,0.7748,0.0107
+c10,PF OA,36,CorF,0.7413,0.0133
+c10,PF OA,37,CorF,0.7516,0.0141
+c10,PF OA,38,CorF,0.7851,0.0147
+c10,PF OA,39,CorF,0.7181,0.0129
+c10,PF OA,40,CorF,0.7233,0.0106
+c10,PF OA,41,CorF,0.6396,0.0089
+c10,PF OA,42,CorF,0.6306,0.0071
+c10,PF OA,43,CorF,0.5084,0.0048
+c10,PF OA,44,CorS,0.686,0.0034
+c10,PF OA,45,CorS,0.7761,0.0047
+c10,PF OA,46,CorS,0.7709,0.0048
+c10,PF OA,47,CorS,0.7606,0.0051
+c10,PF OA,48,CorS,0.74,0.0056
+c10,PF OA,49,CorS,0.6885,0.0052
+c10,PF OA,50,CorS,0.6178,0.0037
+c10,PF OA,51,CorS,0.5856,0.0036
+c10,PF OA,52,Ax,0.7233,0.0069
+c10,PF OA,53,Ax,0.6628,0.0112
+c10,PF OA,54,Ax,0.7194,0.0121
+c10,PF OA,55,Ax,0.7143,0.0154
+c10,PF OA,56,Ax,0.6306,0.0171
+c10,PF OA,57,Ax,0.7117,0.0177
+c10,PF OA,58,Ax,0.8275,0.022
+c10,PF OA,59,Ax,0.7992,0.0248
+c10,PF OA,60,Ax,0.8018,0.0269
+c10,PF OA,61,Ax,0.7838,0.0244
+c10,PF OA,62,Ax,0.704,0.0194
+c10,Synovitis,1,SagF,0.6953,0.0119
+c10,Synovitis,2,SagF,0.7228,0.0131
+c10,Synovitis,3,SagF,0.675,0.0175
+c10,Synovitis,4,SagF,0.73,0.019
+c10,Synovitis,5,SagF,0.7001,0.0232
+c10,Synovitis,6,SagF,0.6798,0.0258
+c10,Synovitis,7,SagF,0.7133,0.027
+c10,Synovitis,8,SagF,0.7097,0.0298
+c10,Synovitis,9,SagF,0.7479,0.0307
+c10,Synovitis,10,SagF,0.7228,0.0269
+c10,Synovitis,11,SagF,0.7838,0.0232
+c10,Synovitis,12,SagF,0.7742,0.025
+c10,Synovitis,13,SagF,0.8184,0.0213
+c10,Synovitis,14,SagF,0.7706,0.0175
+c10,Synovitis,15,SagF,0.7599,0.0164
+c10,Synovitis,16,SagF,0.73,0.013
+c10,Synovitis,17,SagF,0.6344,0.0107
+c10,Synovitis,18,SagS,0.5627,0.0075
+c10,Synovitis,19,SagS,0.6189,0.0083
+c10,Synovitis,20,SagS,0.6762,0.0089
+c10,Synovitis,21,SagS,0.5986,0.0116
+c10,Synovitis,22,SagS,0.7228,0.0119
+c10,Synovitis,23,SagS,0.7467,0.0126
+c10,Synovitis,24,SagS,0.7611,0.0154
+c10,Synovitis,25,SagS,0.7479,0.0152
+c10,Synovitis,26,SagS,0.7814,0.0142
+c10,Synovitis,27,SagS,0.7192,0.0114
+c10,Synovitis,28,SagS,0.8029,0.0125
+c10,Synovitis,29,SagS,0.767,0.01
+c10,Synovitis,30,SagS,0.7336,0.0085
+c10,Synovitis,31,SagS,0.552,0.0085
+c10,Synovitis,32,CorF,0.6332,0.011
+c10,Synovitis,33,CorF,0.6559,0.023
+c10,Synovitis,34,CorF,0.5986,0.0235
+c10,Synovitis,35,CorF,0.7061,0.025
+c10,Synovitis,36,CorF,0.7324,0.0238
+c10,Synovitis,37,CorF,0.6416,0.0206
+c10,Synovitis,38,CorF,0.6225,0.0141
+c10,Synovitis,39,CorF,0.6201,0.0124
+c10,Synovitis,40,CorF,0.7216,0.0115
+c10,Synovitis,41,CorF,0.7551,0.0098
+c10,Synovitis,42,CorF,0.7491,0.0099
+c10,Synovitis,43,CorF,0.5759,0.0062
+c10,Synovitis,44,CorS,0.6726,0.0056
+c10,Synovitis,45,CorS,0.5197,0.0131
+c10,Synovitis,46,CorS,0.5137,0.0136
+c10,Synovitis,47,CorS,0.5352,0.0102
+c10,Synovitis,48,CorS,0.5508,0.0092
+c10,Synovitis,49,CorS,0.5305,0.0079
+c10,Synovitis,50,CorS,0.4683,0.0066
+c10,Synovitis,51,CorS,0.4994,0.0045
+c10,Synovitis,52,Ax,0.4898,0.0053
+c10,Synovitis,53,Ax,0.4958,0.0091
+c10,Synovitis,54,Ax,0.5651,0.0112
+c10,Synovitis,55,Ax,0.5412,0.0148
+c10,Synovitis,56,Ax,0.6213,0.0193
+c10,Synovitis,57,Ax,0.5627,0.0251
+c10,Synovitis,58,Ax,0.6069,0.0294
+c10,Synovitis,59,Ax,0.6022,0.0296
+c10,Synovitis,60,Ax,0.6464,0.0299
+c10,Synovitis,61,Ax,0.7276,0.0305
+c10,Synovitis,62,Ax,0.7252,0.026
+c10,Lateral OA,1,SagF,0.5493,0.0099
+c10,Lateral OA,2,SagF,0.6654,0.0147
+c10,Lateral OA,3,SagF,0.7118,0.0192
+c10,Lateral OA,4,SagF,0.7447,0.0222
+c10,Lateral OA,5,SagF,0.7311,0.0268
+c10,Lateral OA,6,SagF,0.7408,0.028
+c10,Lateral OA,7,SagF,0.6596,0.0276
+c10,Lateral OA,8,SagF,0.6228,0.0276
+c10,Lateral OA,9,SagF,0.5706,0.0283
+c10,Lateral OA,10,SagF,0.6441,0.0291
+c10,Lateral OA,11,SagF,0.8162,0.0305
+c10,Lateral OA,12,SagF,0.824,0.0303
+c10,Lateral OA,13,SagF,0.7544,0.0352
+c10,Lateral OA,14,SagF,0.7795,0.0318
+c10,Lateral OA,15,SagF,0.7892,0.0261
+c10,Lateral OA,16,SagF,0.7776,0.0169
+c10,Lateral OA,17,SagF,0.706,0.0093
+c10,Lateral OA,18,SagS,0.5609,0.0048
+c10,Lateral OA,19,SagS,0.8221,0.0078
+c10,Lateral OA,20,SagS,0.764,0.0126
+c10,Lateral OA,21,SagS,0.7911,0.0188
+c10,Lateral OA,22,SagS,0.8046,0.0242
+c10,Lateral OA,23,SagS,0.8298,0.025
+c10,Lateral OA,24,SagS,0.7814,0.0243
+c10,Lateral OA,25,SagS,0.7118,0.0239
+c10,Lateral OA,26,SagS,0.6828,0.0259
+c10,Lateral OA,27,SagS,0.6789,0.0286
+c10,Lateral OA,28,SagS,0.7408,0.0273
+c10,Lateral OA,29,SagS,0.8298,0.0213
+c10,Lateral OA,30,SagS,0.8395,0.0148
+c10,Lateral OA,31,SagS,0.5242,0.0056
+c10,Lateral OA,32,CorF,0.5822,0.0034
+c10,Lateral OA,33,CorF,0.7215,0.005
+c10,Lateral OA,34,CorF,0.7853,0.0064
+c10,Lateral OA,35,CorF,0.7311,0.008
+c10,Lateral OA,36,CorF,0.6886,0.0111
+c10,Lateral OA,37,CorF,0.7427,0.0164
+c10,Lateral OA,38,CorF,0.7718,0.0226
+c10,Lateral OA,39,CorF,0.7253,0.0236
+c10,Lateral OA,40,CorF,0.7099,0.021
+c10,Lateral OA,41,CorF,0.5377,0.0163
+c10,Lateral OA,42,CorF,0.5435,0.0103
+c10,Lateral OA,43,CorF,0.5145,0.0056
+c10,Lateral OA,44,CorS,0.6422,0.0026
+c10,Lateral OA,45,CorS,0.7273,0.0026
+c10,Lateral OA,46,CorS,0.6867,0.0032
+c10,Lateral OA,47,CorS,0.7099,0.0055
+c10,Lateral OA,48,CorS,0.706,0.0075
+c10,Lateral OA,49,CorS,0.6615,0.0072
+c10,Lateral OA,50,CorS,0.677,0.0055
+c10,Lateral OA,51,CorS,0.4913,0.0065
+c10,Lateral OA,52,Ax,0.7234,0.0076
+c10,Lateral OA,53,Ax,0.501,0.0091
+c10,Lateral OA,54,Ax,0.5532,0.0108
+c10,Lateral OA,55,Ax,0.6886,0.0121
+c10,Lateral OA,56,Ax,0.7253,0.0136
+c10,Lateral OA,57,Ax,0.6867,0.0144
+c10,Lateral OA,58,Ax,0.6441,0.015
+c10,Lateral OA,59,Ax,0.6615,0.0152
+c10,Lateral OA,60,Ax,0.6576,0.0142
+c10,Lateral OA,61,Ax,0.7389,0.0111
+c10,Lateral OA,62,Ax,0.7118,0.0085
+c10,Lateral Meniscus,1,SagF,0.6634,0.0124
+c10,Lateral Meniscus,2,SagF,0.5689,0.019
+c10,Lateral Meniscus,3,SagF,0.6335,0.0302
+c10,Lateral Meniscus,4,SagF,0.6832,0.0412
+c10,Lateral Meniscus,5,SagF,0.7292,0.0447
+c10,Lateral Meniscus,6,SagF,0.6472,0.0363
+c10,Lateral Meniscus,7,SagF,0.6398,0.0224
+c10,Lateral Meniscus,8,SagF,0.6124,0.0151
+c10,Lateral Meniscus,9,SagF,0.6186,0.0158
+c10,Lateral Meniscus,10,SagF,0.5727,0.0187
+c10,Lateral Meniscus,11,SagF,0.5491,0.0335
+c10,Lateral Meniscus,12,SagF,0.6683,0.0418
+c10,Lateral Meniscus,13,SagF,0.6671,0.0578
+c10,Lateral Meniscus,14,SagF,0.7043,0.0581
+c10,Lateral Meniscus,15,SagF,0.6857,0.0464
+c10,Lateral Meniscus,16,SagF,0.646,0.0278
+c10,Lateral Meniscus,17,SagF,0.6174,0.0139
+c10,Lateral Meniscus,18,SagS,0.7143,0.0067
+c10,Lateral Meniscus,19,SagS,0.6143,0.0073
+c10,Lateral Meniscus,20,SagS,0.7025,0.0115
+c10,Lateral Meniscus,21,SagS,0.7099,0.0214
+c10,Lateral Meniscus,22,SagS,0.6839,0.0225
+c10,Lateral Meniscus,23,SagS,0.7112,0.0133
+c10,Lateral Meniscus,24,SagS,0.6516,0.0078
+c10,Lateral Meniscus,25,SagS,0.6714,0.0074
+c10,Lateral Meniscus,26,SagS,0.5671,0.0142
+c10,Lateral Meniscus,27,SagS,0.6391,0.0238
+c10,Lateral Meniscus,28,SagS,0.6093,0.0285
+c10,Lateral Meniscus,29,SagS,0.6019,0.024
+c10,Lateral Meniscus,30,SagS,0.6441,0.0221
+c10,Lateral Meniscus,31,SagS,0.646,0.0065
+c10,Lateral Meniscus,32,CorF,0.6373,0.0036
+c10,Lateral Meniscus,33,CorF,0.523,0.0037
+c10,Lateral Meniscus,34,CorF,0.6286,0.0054
+c10,Lateral Meniscus,35,CorF,0.5901,0.0064
+c10,Lateral Meniscus,36,CorF,0.6199,0.0089
+c10,Lateral Meniscus,37,CorF,0.713,0.018
+c10,Lateral Meniscus,38,CorF,0.677,0.0301
+c10,Lateral Meniscus,39,CorF,0.7093,0.0286
+c10,Lateral Meniscus,40,CorF,0.7056,0.0268
+c10,Lateral Meniscus,41,CorF,0.6944,0.0175
+c10,Lateral Meniscus,42,CorF,0.672,0.0092
+c10,Lateral Meniscus,43,CorF,0.6994,0.0046
+c10,Lateral Meniscus,44,CorS,0.636,0.0028
+c10,Lateral Meniscus,45,CorS,0.5839,0.0017
+c10,Lateral Meniscus,46,CorS,0.6199,0.0016
+c10,Lateral Meniscus,47,CorS,0.6969,0.003
+c10,Lateral Meniscus,48,CorS,0.723,0.0043
+c10,Lateral Meniscus,49,CorS,0.6596,0.0036
+c10,Lateral Meniscus,50,CorS,0.7354,0.0029
+c10,Lateral Meniscus,51,CorS,0.5826,0.0035
+c10,Lateral Meniscus,52,Ax,0.6621,0.0063
+c10,Lateral Meniscus,53,Ax,0.5851,0.0048
+c10,Lateral Meniscus,54,Ax,0.5565,0.0059
+c10,Lateral Meniscus,55,Ax,0.7714,0.0049
+c10,Lateral Meniscus,56,Ax,0.8559,0.0048
+c10,Lateral Meniscus,57,Ax,0.7155,0.0054
+c10,Lateral Meniscus,58,Ax,0.7304,0.006
+c10,Lateral Meniscus,59,Ax,0.6696,0.0059
+c10,Lateral Meniscus,60,Ax,0.7491,0.0064
+c10,Lateral Meniscus,61,Ax,0.7553,0.0066
+c10,Lateral Meniscus,62,Ax,0.7379,0.0051

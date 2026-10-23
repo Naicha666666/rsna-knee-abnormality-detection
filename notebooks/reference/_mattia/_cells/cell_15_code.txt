@@ -1,0 +1,40 @@
+def take_group(cache_rows, g):
+    return cache_rows[:, :, g * GROUP:(g + 1) * GROUP]
+
+def augment(imgs, generator=None):
+    lead = imgs.shape[:-3]
+    x = imgs.reshape(-1, *imgs.shape[-3:]).float()
+    n, dev = (x.shape[0], x.device)
+    rot = (torch.rand(n, device=dev, generator=generator) - 0.5) * 2 * (AUG_ROT_DEG * np.pi / 180)
+    sc = 1.0 + torch.rand(n, device=dev, generator=generator) * AUG_SCALE
+    tx = (torch.rand(n, device=dev, generator=generator) - 0.5) * 2 * AUG_SHIFT
+    ty = (torch.rand(n, device=dev, generator=generator) - 0.5) * 2 * AUG_SHIFT
+    cos, sin = (torch.cos(rot) / sc, torch.sin(rot) / sc)
+    theta = torch.zeros(n, 2, 3, device=dev, dtype=torch.float32)
+    theta[:, 0, 0], theta[:, 0, 1], theta[:, 0, 2] = (cos, -sin, tx)
+    theta[:, 1, 0], theta[:, 1, 1], theta[:, 1, 2] = (sin, cos, ty)
+    grid = F.affine_grid(theta, x.shape, align_corners=False)
+    x = F.grid_sample(x, grid, mode='bilinear', padding_mode='border', align_corners=False)
+    scale = 1.0 + (torch.rand(n, 1, 1, 1, device=dev, generator=generator) - 0.5) * 2 * AUG_INTENSITY
+    x = (x * scale).clamp(0, 255)
+    return x.reshape(*lead, *x.shape[-3:]).to(imgs.dtype)
+
+@torch.no_grad()
+def predict(model, cache, mask, idx, dev, img_size=None):
+    model.eval()
+    out = []
+    for b in range(0, len(idx), EVAL_BATCH):
+        sel = idx[b:b + EVAL_BATCH]
+        m = torch.from_numpy(mask[sel]).to(dev)
+        acc = None
+        for g in range(N_GROUP):
+            rows = torch.from_numpy(np.ascontiguousarray(cache[sel, :, g * GROUP:(g + 1) * GROUP])).to(dev)
+            with torch.autocast('cuda', enabled=dev.type == 'cuda'):
+                z = model(rows, m, img_size).float()
+            acc = z if acc is None else acc + z
+        out.append(torch.sigmoid(acc / N_GROUP).cpu().numpy())
+    return np.concatenate(out) if out else np.zeros((0, len(TARGETS)), np.float32)
+
+def macro_auc(y, p):
+    from sklearn.metrics import roc_auc_score
+    return float(np.nanmean([roc_auc_score(y[:, j], p[:, j]) if len(set(y[:, j])) > 1 else np.nan for j in range(y.shape[1])]))

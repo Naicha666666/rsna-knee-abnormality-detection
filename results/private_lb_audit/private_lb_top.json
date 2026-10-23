@@ -1,0 +1,671 @@
+{
+  "target": {
+    "rank": 783,
+    "team_id": 16688751,
+    "team_name": "X&Y",
+    "score": "0.942",
+    "date": "2026-10-22 01:47:58.923000"
+  },
+  "top25": [
+    {
+      "rank": 1,
+      "team_id": 16672144,
+      "team_name": "Team Kangaroo🦘",
+      "score": "0.960",
+      "date": "2026-10-22 23:26:57.290000"
+    },
+    {
+      "rank": 2,
+      "team_id": 16783484,
+      "team_name": "MURAD",
+      "score": "0.960",
+      "date": "2026-10-22 15:07:19.003000"
+    },
+    {
+      "rank": 3,
+      "team_id": 16800067,
+      "team_name": "DataTech Club",
+      "score": "0.959",
+      "date": "2026-10-22 17:12:32.646000"
+    },
+    {
+      "rank": 4,
+      "team_id": 16785660,
+      "team_name": "Ilya Kolb",
+      "score": "0.958",
+      "date": "2026-10-22 17:06:09.823000"
+    },
+    {
+      "rank": 5,
+      "team_id": 16668884,
+      "team_name": "RB & Matheus & Tucker & Tony",
+      "score": "0.958",
+      "date": "2026-10-22 13:45:54.010000"
+    },
+    {
+      "rank": 6,
+      "team_id": 16722455,
+      "team_name": "CentralyDS",
+      "score": "0.958",
+      "date": "2026-10-22 11:44:52.496000"
+    },
+    {
+      "rank": 7,
+      "team_id": 16723080,
+      "team_name": "Barry",
+      "score": "0.957",
+      "date": "2026-10-22 12:19:26.020000"
+    },
+    {
+      "rank": 8,
+      "team_id": 16670731,
+      "team_name": "joinT fusion",
+      "score": "0.957",
+      "date": "2026-10-22 11:46:52.913000"
+    },
+    {
+      "rank": 9,
+      "team_id": 16699030,
+      "team_name": "Parag & Ian & Dieter & CroDoc",
+      "score": "0.957",
+      "date": "2026-10-22 15:30:29.963000"
+    },
+    {
+      "rank": 10,
+      "team_id": 16735505,
+      "team_name": "MEJAL",
+      "score": "0.957",
+      "date": "2026-10-22 14:35:12.240000"
+    },
+    {
+      "rank": 11,
+      "team_id": 16671032,
+      "team_name": "Sergey Bryansky",
+      "score": "0.956",
+      "date": "2026-10-22 16:59:54.736000"
+    },
+    {
+      "rank": 12,
+      "team_id": 16942457,
+      "team_name": "Zyy7390",
+      "score": "0.956",
+      "date": "2026-10-22 10:18:01.043000"
+    },
+    {
+      "rank": 13,
+      "team_id": 16669547,
+      "team_name": "Advanced CV",
+      "score": "0.956",
+      "date": "2026-10-22 12:16:36.870000"
+    },
+    {
+      "rank": 14,
+      "team_id": 16853594,
+      "team_name": "Claudio Verdú Ruiz",
+      "score": "0.956",
+      "date": "2026-10-22 11:12:19.346000"
+    },
+    {
+      "rank": 15,
+      "team_id": 16676548,
+      "team_name": "🦵YOKKOISHO🦵",
+      "score": "0.956",
+      "date": "2026-10-22 13:08:47.630000"
+    },
+    {
+      "rank": 16,
+      "team_id": 16980477,
+      "team_name": "Pa3฿aJluHа",
+      "score": "0.955",
+      "date": "2026-10-22 12:35:25.356000"
+    },
+    {
+      "rank": 17,
+      "team_id": 16944340,
+      "team_name": "Hyunwoong Kim",
+      "score": "0.955",
+      "date": "2026-10-22 18:18:17.506000"
+    },
+    {
+      "rank": 18,
+      "team_id": 16857793,
+      "team_name": "IteraLab",
+      "score": "0.955",
+      "date": "2026-10-22 12:47:20.663000"
+    },
+    {
+      "rank": 19,
+      "team_id": 16708516,
+      "team_name": "AdeptusOverfiticus strike back",
+      "score": "0.955",
+      "date": "2026-10-22 13:20:53.686000"
+    },
+    {
+      "rank": 20,
+      "team_id": 16728853,
+      "team_name": "YC & NB",
+      "score": "0.955",
+      "date": "2026-10-22 17:59:29.140000"
+    },
+    {
+      "rank": 21,
+      "team_id": 17046587,
+      "team_name": "Driz Lo",
+      "score": "0.955",
+      "date": "2026-10-22 00:02:09.106000"
+    },
+    {
+      "rank": 22,
+      "team_id": 16758675,
+      "team_name": "matsurih",
+      "score": "0.954",
+      "date": "2026-10-22 13:20:40.980000"
+    },
+    {
+      "rank": 23,
+      "team_id": 16706394,
+      "team_name": "Nischay and Sho, Aillis CEO",
+      "score": "0.954",
+      "date": "2026-10-22 08:00:20.093000"
+    },
+    {
+      "rank": 24,
+      "team_id": 16679396,
+      "team_name": "Ben Pepper",
+      "score": "0.954",
+      "date": "2026-10-22 09:55:35"
+    },
+    {
+      "rank": 25,
+      "team_id": 17079599,
+      "team_name": "MSK Rad Stanford",
+      "score": "0.954",
+      "date": "2026-10-22 20:27:25.663000"
+    }
+  ],
+  "snapshots": [
+    {
+      "rank": 1,
+      "team_id": 16672144,
+      "team_name": "Team Kangaroo🦘",
+      "score": "0.960",
+      "date": "2026-10-22 23:26:57.290000"
+    },
+    {
+      "rank": 10,
+      "team_id": 16735505,
+      "team_name": "MEJAL",
+      "score": "0.957",
+      "date": "2026-10-22 14:35:12.240000"
+    },
+    {
+      "rank": 50,
+      "team_id": 17031264,
+      "team_name": "LI YIZHOU",
+      "score": "0.951",
+      "date": "2026-10-22 11:57:20.620000"
+    },
+    {
+      "rank": 100,
+      "team_id": 16670533,
+      "team_name": "~~Zo3ama~~",
+      "score": "0.948",
+      "date": "2026-10-22 21:55:02.340000"
+    },
+    {
+      "rank": 200,
+      "team_id": 16976332,
+      "team_name": "Ray",
+      "score": "0.945",
+      "date": "2026-10-21 01:59:50.810000"
+    },
+    {
+      "rank": 300,
+      "team_id": 16796957,
+      "team_name": "winstonton",
+      "score": "0.944",
+      "date": "2026-10-16 04:23:27.396000"
+    },
+    {
+      "rank": 313,
+      "team_id": 16949331,
+      "team_name": "Kefei Yan",
+      "score": "0.943",
+      "date": "2026-10-21 14:26:42.110000"
+    },
+    {
+      "rank": 400,
+      "team_id": 17068422,
+      "team_name": "Yuan800",
+      "score": "0.943",
+      "date": "2026-10-19 16:30:25.243000"
+    },
+    {
+      "rank": 500,
+      "team_id": 17013603,
+      "team_name": "Zikai Chen",
+      "score": "0.943",
+      "date": "2026-10-22 10:16:21.866000"
+    },
+    {
+      "rank": 600,
+      "team_id": 16809894,
+      "team_name": "tsuzuk1",
+      "score": "0.943",
+      "date": "2026-10-22 14:14:44.923000"
+    },
+    {
+      "rank": 627,
+      "team_id": 16683394,
+      "team_name": "ALL You Knee Is Luck",
+      "score": "0.942",
+      "date": "2026-10-22 11:52:56.716000"
+    },
+    {
+      "rank": 700,
+      "team_id": 16840991,
+      "team_name": "Yanshu Patel",
+      "score": "0.942",
+      "date": "2026-10-22 05:49:24.033000"
+    },
+    {
+      "rank": 800,
+      "team_id": 16672578,
+      "team_name": "OpPrime",
+      "score": "0.942",
+      "date": "2026-10-22 15:11:50.343000"
+    },
+    {
+      "rank": 900,
+      "team_id": 17057016,
+      "team_name": "yudai_000111",
+      "score": "0.942",
+      "date": "2026-10-22 05:06:46.540000"
+    },
+    {
+      "rank": 1000,
+      "team_id": 16922747,
+      "team_name": "tyson",
+      "score": "0.942",
+      "date": "2026-10-19 20:54:46.233000"
+    },
+    {
+      "rank": 1100,
+      "team_id": 17010693,
+      "team_name": "wwwwwOK",
+      "score": "0.942",
+      "date": "2026-10-21 00:23:55.470000"
+    },
+    {
+      "rank": 1200,
+      "team_id": 17098909,
+      "team_name": "yasut0ra",
+      "score": "0.942",
+      "date": "2026-10-20 23:27:39.736000"
+    },
+    {
+      "rank": 1300,
+      "team_id": 17015043,
+      "team_name": "NapolianAdmin",
+      "score": "0.942",
+      "date": "2026-10-22 02:21:24.130000"
+    },
+    {
+      "rank": 1400,
+      "team_id": 16686384,
+      "team_name": "Yash Mohan",
+      "score": "0.942",
+      "date": "2026-10-20 09:53:34.290000"
+    },
+    {
+      "rank": 1500,
+      "team_id": 16685705,
+      "team_name": "Yusuke Togashi",
+      "score": "0.942",
+      "date": "2026-10-17 07:54:48.046000"
+    },
+    {
+      "rank": 1600,
+      "team_id": 17018016,
+      "team_name": "rsraki",
+      "score": "0.942",
+      "date": "2026-10-22 12:14:02.386000"
+    },
+    {
+      "rank": 1700,
+      "team_id": 16906549,
+      "team_name": "Gronk",
+      "score": "0.942",
+      "date": "2026-10-22 13:35:44.183000"
+    },
+    {
+      "rank": 1800,
+      "team_id": 17040245,
+      "team_name": "ryoryo26",
+      "score": "0.942",
+      "date": "2026-10-22 00:37:34.876000"
+    },
+    {
+      "rank": 1900,
+      "team_id": 16726701,
+      "team_name": "D.Minami802",
+      "score": "0.942",
+      "date": "2026-10-22 14:34:47.250000"
+    },
+    {
+      "rank": 2000,
+      "team_id": 16669560,
+      "team_name": "Mehmet Özer",
+      "score": "0.941",
+      "date": "2026-10-21 18:28:42.586000"
+    },
+    {
+      "rank": 2100,
+      "team_id": 16716563,
+      "team_name": "Yousef",
+      "score": "0.941",
+      "date": "2026-10-16 14:04:13.803000"
+    },
+    {
+      "rank": 2200,
+      "team_id": 16704476,
+      "team_name": "Ayiyeke Olori",
+      "score": "0.940",
+      "date": "2026-10-17 22:39:18.706000"
+    },
+    {
+      "rank": 2300,
+      "team_id": 16994226,
+      "team_name": "Tri Tuc Cao",
+      "score": "0.938",
+      "date": "2026-10-22 13:10:06.733000"
+    },
+    {
+      "rank": 2400,
+      "team_id": 16860239,
+      "team_name": "Fabian Henning",
+      "score": "0.937",
+      "date": "2026-10-17 11:40:48.910000"
+    },
+    {
+      "rank": 2500,
+      "team_id": 16986488,
+      "team_name": "vladimir1506",
+      "score": "0.933",
+      "date": "2026-10-22 09:01:58.670000"
+    },
+    {
+      "rank": 2600,
+      "team_id": 16798463,
+      "team_name": "Debojit Nath",
+      "score": "0.931",
+      "date": "2026-10-18 21:33:39.606000"
+    },
+    {
+      "rank": 2700,
+      "team_id": 17034043,
+      "team_name": "Steins",
+      "score": "0.929",
+      "date": "2026-10-05 06:14:27.646000"
+    },
+    {
+      "rank": 2800,
+      "team_id": 16786037,
+      "team_name": "lijgabe",
+      "score": "0.927",
+      "date": "2026-09-28 15:50:13.033000"
+    },
+    {
+      "rank": 2900,
+      "team_id": 16916422,
+      "team_name": "RUSHMANTH NALLURI",
+      "score": "0.927",
+      "date": "2026-09-29 16:13:42.440000"
+    },
+    {
+      "rank": 3000,
+      "team_id": 16956720,
+      "team_name": "Shrish Manglik",
+      "score": "0.927",
+      "date": "2026-09-25 05:46:06.400000"
+    },
+    {
+      "rank": 3100,
+      "team_id": 16714156,
+      "team_name": "a0x5f",
+      "score": "0.926",
+      "date": "2026-10-02 14:31:52.453000"
+    },
+    {
+      "rank": 3200,
+      "team_id": 16670831,
+      "team_name": "m-toshi desu",
+      "score": "0.925",
+      "date": "2026-09-30 02:57:04.753000"
+    },
+    {
+      "rank": 3300,
+      "team_id": 16826149,
+      "team_name": "Haraguchi-T",
+      "score": "0.923",
+      "date": "2026-10-09 12:57:14.726000"
+    },
+    {
+      "rank": 3400,
+      "team_id": 16679506,
+      "team_name": "Udit Jain",
+      "score": "0.923",
+      "date": "2026-09-12 00:18:27.080000"
+    },
+    {
+      "rank": 3500,
+      "team_id": 16881442,
+      "team_name": "Sakito Horie",
+      "score": "0.922",
+      "date": "2026-09-17 00:31:29.736000"
+    },
+    {
+      "rank": 3600,
+      "team_id": 16792083,
+      "team_name": "Tomohiko Ikeda",
+      "score": "0.920",
+      "date": "2026-09-06 21:52:36.813000"
+    },
+    {
+      "rank": 3700,
+      "team_id": 16733734,
+      "team_name": "RyanHo",
+      "score": "0.919",
+      "date": "2026-08-27 05:44:25.666000"
+    },
+    {
+      "rank": 3800,
+      "team_id": 16680554,
+      "team_name": "MANAS NARKAR",
+      "score": "0.919",
+      "date": "2026-08-28 10:09:37.096000"
+    },
+    {
+      "rank": 3900,
+      "team_id": 16675583,
+      "team_name": "Danainae",
+      "score": "0.916",
+      "date": "2026-09-25 10:04:51.036000"
+    },
+    {
+      "rank": 4000,
+      "team_id": 16763101,
+      "team_name": "Tatsuya Nakno",
+      "score": "0.912",
+      "date": "2026-10-06 02:41:24.033000"
+    },
+    {
+      "rank": 4100,
+      "team_id": 16703880,
+      "team_name": "Alberto Mocchi",
+      "score": "0.904",
+      "date": "2026-08-22 15:14:13.993000"
+    },
+    {
+      "rank": 4200,
+      "team_id": 16678740,
+      "team_name": "Yinan Zhu",
+      "score": "0.899",
+      "date": "2026-08-20 03:27:28.116000"
+    },
+    {
+      "rank": 4300,
+      "team_id": 16976287,
+      "team_name": "XDzZyq",
+      "score": "0.894",
+      "date": "2026-10-08 06:51:49.243000"
+    },
+    {
+      "rank": 4400,
+      "team_id": 16673118,
+      "team_name": "Calaweh",
+      "score": "0.889",
+      "date": "2026-08-17 10:39:24.516000"
+    },
+    {
+      "rank": 4500,
+      "team_id": 16695295,
+      "team_name": "A Aswanth Raj",
+      "score": "0.878",
+      "date": "2026-08-11 07:59:17.576000"
+    },
+    {
+      "rank": 4600,
+      "team_id": 16915018,
+      "team_name": "alconbluez",
+      "score": "0.874",
+      "date": "2026-09-24 13:54:09.813000"
+    },
+    {
+      "rank": 4700,
+      "team_id": 16832823,
+      "team_name": "Md. Hosne Mobarak",
+      "score": "0.871",
+      "date": "2026-09-04 21:06:24.410000"
+    },
+    {
+      "rank": 4800,
+      "team_id": 16826025,
+      "team_name": "Arjun-Bhattarai123",
+      "score": "0.866",
+      "date": "2026-10-22 13:59:18.636000"
+    },
+    {
+      "rank": 4900,
+      "team_id": 16670231,
+      "team_name": "Porch Goose",
+      "score": "0.850",
+      "date": "2026-10-10 22:15:44.736000"
+    },
+    {
+      "rank": 5000,
+      "team_id": 16678234,
+      "team_name": "Juan F Rojas",
+      "score": "0.828",
+      "date": "2026-08-10 03:32:34.513000"
+    },
+    {
+      "rank": 5100,
+      "team_id": 16671948,
+      "team_name": "Naresh Meena",
+      "score": "0.808",
+      "date": "2026-08-09 08:51:13.190000"
+    },
+    {
+      "rank": 5200,
+      "team_id": 16673017,
+      "team_name": "Team Name",
+      "score": "0.788",
+      "date": "2026-08-25 06:24:56.913000"
+    },
+    {
+      "rank": 5300,
+      "team_id": 16866355,
+      "team_name": "Asakurayume",
+      "score": "0.766",
+      "date": "2026-09-13 16:47:29.856000"
+    },
+    {
+      "rank": 5400,
+      "team_id": 16698705,
+      "team_name": "Nikoloz Kozmanashvili",
+      "score": "0.738",
+      "date": "2026-09-14 09:24:53.126000"
+    },
+    {
+      "rank": 5500,
+      "team_id": 17013021,
+      "team_name": "ABDUL SALAM",
+      "score": "0.703",
+      "date": "2026-10-04 05:05:34.876000"
+    },
+    {
+      "rank": 5600,
+      "team_id": 16670329,
+      "team_name": "Enrico Ambrosio",
+      "score": "0.665",
+      "date": "2026-08-06 20:09:20.906000"
+    },
+    {
+      "rank": 5700,
+      "team_id": 16767513,
+      "team_name": "Eva",
+      "score": "0.637",
+      "date": "2026-08-28 12:32:47.670000"
+    },
+    {
+      "rank": 5800,
+      "team_id": 16772013,
+      "team_name": "Michael Perez",
+      "score": "0.603",
+      "date": "2026-09-10 17:50:25.950000"
+    },
+    {
+      "rank": 5900,
+      "team_id": 16676812,
+      "team_name": "Aviral Trivedi",
+      "score": "0.568",
+      "date": "2026-08-09 08:52:57.993000"
+    },
+    {
+      "rank": 6000,
+      "team_id": 16760112,
+      "team_name": "B Yaswanth Naidu",
+      "score": "0.542",
+      "date": "2026-08-23 15:20:26.713000"
+    },
+    {
+      "rank": 6100,
+      "team_id": 16680677,
+      "team_name": "Fuchichu_813😒",
+      "score": "0.517",
+      "date": "2026-08-18 11:54:00.313000"
+    },
+    {
+      "rank": 6200,
+      "team_id": 16670522,
+      "team_name": "Ouedraogo somkieta",
+      "score": "0.501",
+      "date": "2026-08-16 11:15:50.606000"
+    },
+    {
+      "rank": 6300,
+      "team_id": 16760284,
+      "team_name": "Pendergast",
+      "score": "0.500",
+      "date": "2026-08-22 23:35:21.086000"
+    },
+    {
+      "rank": 6400,
+      "team_id": 16926199,
+      "team_name": "Siddiq Jamadar",
+      "score": "0.498",
+      "date": "2026-10-02 12:56:32.950000"
+    }
+  ]
+}

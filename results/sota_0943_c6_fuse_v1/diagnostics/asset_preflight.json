@@ -1,0 +1,20 @@
+{
+  "A5_root": "/kaggle/input/datasets/mattiaangeli/knee-mri-fold-weights",
+  "D4_timm_wheel_sha256": "888981753e65cbaacfc07494370138b1700a27b1f0af587f4f9b47bc024161d0",
+  "coat_resgated_ep10_top3_manifest.json": {
+    "path": "/kaggle/input/datasets/mattiaangeli/rsna-knee-coat-resgated-ep10-top3/coat_resgated_ep10_top3_manifest.json",
+    "sha256": "98511a8fdeb9da0e6e70c78d013ff636e1476f31c80b5dc134d294b18c3f284e"
+  },
+  "coatnet_pairfilm_manifest.json": {
+    "path": "/kaggle/input/datasets/mattiaangeli/rsna-knee-coatnet-d4-depthzone-swa3-b2/coatnet_pairfilm_manifest.json",
+    "sha256": "7ada0605bca6b0530569c6454e988ace479606a3328ed591d090e5764fea661d"
+  },
+  "opencv_python_headless-4.12.0.88-*.whl": {
+    "path": "/kaggle/input/datasets/mattiaangeli/opencv-python-headless-4120088-x86/opencv_python_headless-4.12.0.88-cp37-abi3-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+    "sha256": "236c8df54a90f4d02076e6f9c1cc763d794542e886c576a6fee46ec8ff75a7a9"
+  },
+  "raptor_ft_coatnet_v10_full.pt": "/kaggle/input/datasets/dreaddevelopment/raptor-knee-native384dense/raptor_ft_coatnet_v10_full.pt",
+  "raptor_ft_coatnet_v5_full_swa.pt": "/kaggle/input/datasets/dreaddevelopment/raptor-knee-maxspan/raptor_ft_coatnet_v5_full_swa.pt",
+  "raptor_ft_coatnet_v8_full_swa.pt": "/kaggle/input/datasets/dreaddevelopment/raptor-knee-native384/raptor_ft_coatnet_v8_full_swa.pt",
+  "tensor_loading_and_fingerprints": "validated by mandatory component loaders before predictions"
+}

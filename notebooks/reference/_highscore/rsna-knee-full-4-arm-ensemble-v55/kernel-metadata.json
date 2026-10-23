@@ -1,0 +1,36 @@
+{
+  "id": "nishantkharga/rsna-knee-full-4-arm-ensemble-v55",
+  "id_no": 131224111,
+  "title": "RSNA Knee: Full 4-arm ensemble v55",
+  "code_file": "rsna-knee-full-4-arm-ensemble-v55.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": true,
+  "enable_tpu": false,
+  "enable_internet": false,
+  "keywords": [
+    "gpu"
+  ],
+  "dataset_sources": [
+    "dreaddevelopment/raptor-knee-maxspan",
+    "mattiaangeli/knee-mri-fold-weights",
+    "dreaddevelopment/raptor-knee-widedense",
+    "dreaddevelopment/raptor-knee-arms",
+    "dreaddevelopment/raptor-knee-arms-x",
+    "marwanmath/resnet-50-radimagenet-marwan",
+    "tonylica/rsna-knee-bend-dinov3-0917-repro-assets",
+    "antoinegg1/rsna-knee-e9-radimagenet-heads-v15",
+    "prvsiyan/rsna-knee-v52-radimagenet-heads-20260812",
+    "pilkwang/rsna-knee-weights"
+  ],
+  "kernel_sources": [],
+  "competition_sources": [
+    "rsna-knee-abnormality-detection"
+  ],
+  "model_sources": [
+    "metaresearch/dinov2/PyTorch/small/1"
+  ],
+  "docker_image": "gcr.io/kaggle-private-byod/python@sha256:37c64f7dd9c54116ecd1bcc88817c5469b88387388fade02bfa8bf3fc647d461",
+  "machine_shape": "NvidiaTeslaT4"
+}

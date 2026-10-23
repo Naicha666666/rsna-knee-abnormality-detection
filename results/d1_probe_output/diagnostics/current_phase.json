@@ -1,0 +1,21 @@
+{
+  "elapsed_seconds": 312.7240877151489,
+  "gpus": [
+    {
+      "allocated_bytes": 19136512,
+      "id": 0,
+      "reserved_bytes": 62914560
+    },
+    {
+      "allocated_bytes": 9568256,
+      "id": 1,
+      "reserved_bytes": 23068672
+    }
+  ],
+  "max_rss_kib": 7714592,
+  "memory.current": "14964482048",
+  "memory.max": "32212254720",
+  "ok": true,
+  "stage": "repairv1_coat",
+  "status": "COMPLETE"
+}

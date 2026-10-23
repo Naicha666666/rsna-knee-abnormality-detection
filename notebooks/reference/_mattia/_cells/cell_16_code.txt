@@ -1,0 +1,7 @@
+import math
+import cv2
+
+
+'Runtime helpers embedded into the V26 Kaggle notebook.\n\nThe exact RTAHMIL class from the public report-teacher notebook is prepended by the\ncandidate builder. This file contains only hidden-test feature extraction, checkpoint\ninference, and the fail-safe Synovitis blend.\n'
+
+

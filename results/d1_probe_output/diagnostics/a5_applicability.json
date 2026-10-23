@@ -1,0 +1,7 @@
+{
+  "available_count": 3,
+  "model_failure_fallback_allowed": false,
+  "placeholder_used_in_blend": false,
+  "rank_placeholder_for_unavailable": 0.5,
+  "unavailable_uids": []
+}

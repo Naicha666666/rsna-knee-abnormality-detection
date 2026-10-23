@@ -1,0 +1,237 @@
+def _near(clause: str, stem_rx: re.Pattern, qual_rx: re.Pattern, window: int=55):
+    for m in stem_rx.finditer(clause):
+        lo = max(0, m.start() - window)
+        hi = min(len(clause), m.end() + window)
+        if qual_rx.search(clause[lo:hi]):
+            return True
+    return False
+STEM_RULES = {'ACL': (STEM_CRUCIATE, SIDE_ANTERIOR), 'MCL': (STEM_COLLATERAL, SIDE_MEDIAL), 'Medial Meniscus': (STEM_MENISCUS, SIDE_MEDIAL), 'Lateral Meniscus': (STEM_MENISCUS, SIDE_LATERAL)}
+
+class _Matcher:
+
+    def __init__(self, phrase_rx, stem=None, side=None, window=55):
+        self.phrase_rx = phrase_rx
+        self.stem = stem
+        self.side = side
+        self.window = window
+
+    def search(self, clause):
+        m = self.phrase_rx.search(clause)
+        if m is not None:
+            return m
+        if self.stem is not None and _near(clause, self.stem, self.side, self.window):
+            return self.stem.search(clause)
+        return None
+ANAT_MATCH = {t: _Matcher(ANAT[t], *STEM_RULES[t]) for t in PAIRED}
+DIRECT_MATCH = {t: _Matcher(_rx(rx.pattern, STEM_FRACTURE.pattern) if t == 'Fracture' else rx) for t, rx in DIRECT.items()}
+SEV_LOW = _rx('\\bsmall\\b', '\\bminimal\\b', '\\btrace\\b', '\\bmild\\b', '\\bslight\\b', '\\btiny\\b', '\\bscant\\b', '\\bdiscrete\\b', '\\blow ?grade\\b', '\\bincipient\\b', '\\bleve\\b', '\\bminim', '\\bpeque', '\\bfina\\b', '\\bfino\\b', '\\bligero\\b', '\\bescaso\\b', '\\bdiscreto\\b', '\\bhafif\\b', '\\baz miktarda\\b', '\\bsilik\\b', '\\bmanj\\w*', '\\bblago\\b', '\\bdiskretn', '\\bmalo\\b', '\\bpocetn', '\\bgering', '\\bdiskret', '\\bkleine?r?\\b', '\\bwenig\\b', '\\bzarte?\\b', '\\bbeperkte?\\b', '\\bgeringe\\b', '\\bweinig\\b', '\\blichte?\\b', '\\blicht\\b', '\\bηπι', '\\bμικρ', '\\bελαχιστ', '\\bαρχομεν', '\\bминимал', '\\bлек', '\\bмалк', '\\bнеголям')
+SEV_HIGH = _rx('\\blarge\\b', '\\bmarked\\b', '\\bmassive\\b', '\\bsevere\\b', '\\bextensive\\b', '\\bmoderate\\b', '\\bgross\\b', '\\bsignificant\\b', '\\babundant\\b', '\\btense\\b', '\\bcomplete\\b', '\\bfull ?thickness\\b', '\\bhigh ?grade\\b', '\\badvanced\\b', '\\bmoderad', '\\bimportante\\b', '\\bsevera?\\b', '\\bmarcad', '\\bcuantios', '\\bespesor total\\b', '\\bcompleta?\\b', '\\bbelirgin\\b', '\\byaygin\\b', '\\bileri\\b', '\\bciddi\\b', '\\bbol\\b', '\\bkomplet', '\\bopsezan\\b', '\\bveliki\\b', '\\bizrazit', '\\bznacajn', '\\bumjeren', '\\buznapredoval', '\\bpotpun', '\\bkompleksn', '\\bausgepragt', '\\bdeutlich', '\\bmassiv', '\\bmassig', '\\bgross', '\\buitgebreid', '\\bgevorderd', '\\bveel\\b', '\\bmatige?\\b', '\\bvolledig', '\\bμετρι', '\\bμεγαλ', '\\bεκτεταμεν', '\\bευμεγεθ', '\\bσοβαρ', '\\bπληρη', '\\bголям', '\\bизразен', '\\bзначим', '\\bумерен', '\\bобилен', '\\bпълн')
+GRADE_HIGH = re.compile('grade?[ao]?\\s*(3|4|iii|iv)\\b|icrs grade (iii|iv|3|4)|stupnja iv|stupnja iii|\\bgrado (3|4)\\b|\\bgrad (3|4)\\b|\\bgrade (3|4)\\b')
+DEGENERATIVE_MARROW = _rx('subchondral', 'subcondral', 'subkondral', 'supkondraln', 'subchondraln', 'υποχονδρι', 'υπαρθρικ', 'субхондрал', 'subchondrale?', 'subartikuler', '\\bcyst', '\\bquist', '\\bzyste\\b', '\\bcistic', 'reactive', 'reactivo', 'degenerative', 'degenerativ', 'reaktiv', '\\bcisti\\b')
+TRAUMA = _rx('\\bbruise\\b', '\\bcontusion', '\\bkontuz', '\\btrauma', '\\bimpaction\\b', '\\bpivot shift\\b', '\\bkissing\\b', '\\bacute\\b', '\\bagudo\\b', '\\bakut', '\\bpivot kaymasi\\b', '\\bcontusion osseuse\\b', '\\bbone bruise\\b', '\\bbotcontusie\\b', '\\bконтузион', '\\bμωλωπ', '\\bkontuzij', '\\bimpaktcij', '\\bimpakcij', '\\bfall\\b', '\\binjury\\b', '\\bimpression\\b')
+SYNOVIAL_PROXY = _rx('bursit', 'burzit', '\\bbursa\\b[^.]{0,30}(fluid|distend|sivi|tekucin|opzetting)', 'suprapatellar (bursitis|effusion|recess)', 'suprapatellar bursa', 'suprapatellar bursada', 'suprapatelarno', 'suprapatellaire recessus', 'hoffa', 'hoffit', 'plica', 'plika', 'πλικα', 'fat pad[^.]{0,20}(edema|oedema)', 'kapsul', 'capsul', 'καψ', 'капсул', '\\bpannus\\b', '\\bsinov', '\\bsynov')
+
+def _polarity(clause: str, span=None) -> str:
+    if UNCERTAIN.search(clause):
+        return 'uncertain'
+    if span is None or not FEATURES['directional_negation']:
+        if NEGATION.search(clause):
+            return 'negative'
+    elif _negated(clause, span[0], span[1]):
+        return 'negative'
+    if NORMALITY.search(clause):
+        if TEAR.search(clause) or GRADE_HIGH.search(clause):
+            return 'positive'
+        return 'negative'
+    return 'positive'
+
+def _severity(clause: str) -> float:
+    high = SEV_HIGH.search(clause) is not None
+    low = SEV_LOW.search(clause) is not None
+    if high and (not low):
+        return 1.0
+    if low and (not high):
+        return 0.45
+    if high and low:
+        return 0.8
+    return 0.75
+
+def _grade(n_pos, n_neg, n_unc, best):
+    if n_pos or n_unc:
+        score = min(0.97, 0.5 + 0.45 * best + 0.015 * min(n_pos, 3))
+        conf = min(1.0, 0.55 + 0.15 * n_pos)
+    elif n_neg:
+        score = max(0.04, 0.2 - 0.04 * n_neg)
+        conf = min(0.9, 0.45 + 0.12 * n_neg)
+    else:
+        score, conf = (0.28, 0.05)
+    return (score, conf)
+
+def _paired_weight(clause: str, meniscus: bool) -> float:
+    g = _grade_of(clause) if FEATURES['graded_pathology'] else None
+    tear = TEAR.search(clause) is not None
+    if meniscus:
+        if tear:
+            base = 1.0
+        elif g is not None:
+            base = 0.95 if g >= 3 else 0.3
+        elif DEGEN.search(clause):
+            base = 0.35
+        else:
+            base = 0.45
+    elif tear:
+        base = 1.0
+    elif g is not None:
+        base = 0.85 if g >= 2 else 0.3
+    elif DEGEN.search(clause):
+        base = 0.4
+    else:
+        base = 0.55
+    if SEV_HIGH.search(clause) and (not SEV_LOW.search(clause)):
+        base = min(1.0, base * 1.2)
+    elif SEV_LOW.search(clause) and (not SEV_HIGH.search(clause)):
+        base *= 0.7
+    return base
+
+def _score_paired(cls, tgt):
+    anat_rx = ANAT_MATCH[tgt]
+    path_rx = _rx(TEAR.pattern, DEGEN.pattern, INJURY.pattern)
+    meniscus = 'Meniscus' in tgt
+    n_pos = n_neg = n_unc = 0
+    best = 0.0
+    for c in cls:
+        hit = anat_rx.search(c)
+        if hit is None and meniscus and PLURAL_MENISCI.search(c) and (not ANY_SIDE.search(c)):
+            hit = PLURAL_MENISCI.search(c)
+        if hit is None:
+            continue
+        pm = path_rx.search(c)
+        if pm is None and _grade_of(c) is None:
+            if NORMAL_PHRASE.search(c) or (NORMALITY.search(c) and (not NEGATION.search(c))):
+                n_neg += 1
+            continue
+        span = (pm.start(), pm.end()) if pm is not None else None
+        pol = _polarity(c, span)
+        if pol == 'positive':
+            n_pos += 1
+            best = max(best, _paired_weight(c, meniscus))
+        elif pol == 'negative':
+            n_neg += 1
+        else:
+            n_unc += 1
+            best = max(best, 0.45 * _paired_weight(c, meniscus))
+    s, cf = _grade(n_pos, n_neg, n_unc, best)
+    return (s, cf, n_pos, n_neg)
+
+def _score_clauses(cls, anat_rx, path_rx=None, decoy_rx=None, context_penalty=None, context_bonus=None):
+    n_pos = n_neg = n_unc = 0
+    best = 0.0
+    for c in cls:
+        m = anat_rx.search(c)
+        if not m:
+            continue
+        if decoy_rx is not None and decoy_rx.search(c):
+            continue
+        if path_rx is not None and (not path_rx.search(c)):
+            if NORMAL_PHRASE.search(c) or (NORMALITY.search(c) and (not NEGATION.search(c))):
+                n_neg += 1
+            continue
+        pol = _polarity(c, (m.start(), m.end()))
+        if pol == 'positive':
+            n_pos += 1
+            w = _severity(c)
+            if context_penalty is not None and context_penalty.search(c):
+                w *= 0.45
+            if context_bonus is not None and context_bonus.search(c):
+                w = min(1.0, w * 1.35)
+            best = max(best, w)
+        elif pol == 'negative':
+            n_neg += 1
+        else:
+            n_unc += 1
+            best = max(best, 0.3)
+    s, c = _grade(n_pos, n_neg, n_unc, best)
+    return (s, c, n_pos, n_neg)
+
+def _score_oa(cls):
+    acc = {t: {'pos': 0, 'neg': 0, 'unc': 0, 'best': 0.0} for t in OA_TARGETS}
+    g_pos, g_neg, g_best = (0, 0, 0.0)
+    for c in cls:
+        m = OA_EVIDENCE.search(c)
+        if not m:
+            continue
+        pol = _polarity(c, (m.start(), m.end()))
+        sev = _severity(c)
+        tf_med = _near(c, TF_SITE, SIDE_MEDIAL, 45)
+        tf_lat = _near(c, TF_SITE, SIDE_LATERAL, 45)
+        pf = PF_SITE.search(c) is not None
+        hits = []
+        if tf_med:
+            hits.append('Medial OA')
+        if tf_lat:
+            hits.append('Lateral OA')
+        if pf:
+            hits.append('PF OA')
+        if not hits:
+            if pol == 'positive':
+                g_pos += 1
+                g_best = max(g_best, sev if GLOBAL_OA.search(c) else sev * 0.7)
+            elif pol == 'negative':
+                g_neg += 1
+            continue
+        for t in hits:
+            if pol == 'positive':
+                acc[t]['pos'] += 1
+                acc[t]['best'] = max(acc[t]['best'], sev)
+            elif pol == 'negative':
+                acc[t]['neg'] += 1
+            else:
+                acc[t]['unc'] += 1
+                acc[t]['best'] = max(acc[t]['best'], 0.3)
+    out = {}
+    for t in OA_TARGETS:
+        a = acc[t]
+        pos, neg, unc, best = (a['pos'], a['neg'], a['unc'], a['best'])
+        if not (pos or unc) and g_pos and FEATURES['oa_inherit']:
+            if neg:
+                score, conf = _grade(0, neg, 0, 0.0)
+                score = max(score, 0.35)
+                conf *= 0.7
+            else:
+                score, conf = _grade(g_pos, 0, 0, g_best * 0.92)
+                conf *= 0.75
+        else:
+            score, conf = _grade(pos, neg + g_neg, unc, best)
+        out[t] = (score, conf, pos, neg)
+    return out
+
+def extract(report: str) -> dict:
+    cls = clauses(report)
+    out = {}
+    for tgt in PAIRED:
+        s, c, npos, nneg = _score_paired(cls, tgt)
+        out[tgt] = s
+        out[tgt + '__conf'] = c
+        out[tgt + '__npos'] = npos
+        out[tgt + '__nneg'] = nneg
+    for tgt, (s, c, npos, nneg) in _score_oa(cls).items():
+        out[tgt] = s
+        out[tgt + '__conf'] = c
+        out[tgt + '__npos'] = npos
+        out[tgt + '__nneg'] = nneg
+    for tgt in ('Effusion', 'Synovitis', "Baker's", 'Contusion', 'Fracture'):
+        if tgt == 'Contusion':
+            s, c, npos, nneg = _score_clauses(cls, DIRECT_MATCH[tgt], None, DECOY.get(tgt), context_penalty=DEGENERATIVE_MARROW, context_bonus=TRAUMA)
+        else:
+            s, c, npos, nneg = _score_clauses(cls, DIRECT_MATCH[tgt], None, DECOY.get(tgt))
+        out[tgt] = s
+        out[tgt + '__conf'] = c
+        out[tgt + '__npos'] = npos
+        out[tgt + '__nneg'] = nneg
+    if FEATURES['synovitis_backoff'] and out['Synovitis__npos'] == 0 and (out['Synovitis__nneg'] == 0):
+        proxy = sum((1 for c in cls if SYNOVIAL_PROXY.search(c) and _polarity(c) == 'positive'))
+        eff = out['Effusion']
+        prior = 0.3 + 0.3 * max(0.0, (eff - 0.5) / 0.45) + 0.06 * min(proxy, 3)
+        out['Synovitis'] = min(0.72, prior)
+        out['Synovitis__conf'] = 0.18
+    return out

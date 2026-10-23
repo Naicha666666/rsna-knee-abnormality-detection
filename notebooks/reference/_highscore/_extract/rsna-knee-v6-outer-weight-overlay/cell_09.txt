@@ -1,0 +1,117 @@
+# V6_OUTER_WEIGHT_OVERLAY (adapted from prvsiyan/the-bee-s-knees-final-rsna-push)
+"""Apply a fixed five-target outer-weight policy to existing components.
+
+Runs after the public0033 T30/R60/bag10 overlay (0.937 control). Reads no
+labels and loads no new model; recomputes rank((1-w)*transformer + w*raptor)
+for five targets using components already in memory.
+"""
+import csv as _v6_csv
+import hashlib as _v6_hashlib
+import json as _v6_json
+import os as _v6_os
+from pathlib import Path as _V6Path
+import numpy as _v6_np
+import pandas as _v6_pd
+
+_V6_WORK = _V6Path('/kaggle/working')
+_V6_SUB = _V6_WORK / 'submission.csv'
+_V6_CONTROL = _V6_WORK / 'public0033_overlay_receipt.json'
+_V6_OUT = _V6_WORK / 'v6_weight_overlay_receipt.json'
+_V6_TMP = _V6_WORK / '.v6_submission.tmp.csv'
+_V6_LABELS = ['ACL','MCL','Medial Meniscus','Lateral Meniscus','Medial OA','Lateral OA','PF OA','Effusion','Synovitis',"Baker's",'Contusion','Fracture']
+_V6_WEIGHTS = {'ACL':0.80,'Lateral OA':0.35,'PF OA':0.35,'Synovitis':0.35,"Baker's":0.375}
+_V6_HEADER = ['StudyInstanceUID', *_V6_LABELS]
+
+def _v6_sha(p):
+    h = _v6_hashlib.sha256()
+    with p.open('rb') as f:
+        for b in iter(lambda: f.read(8<<20), b''):
+            h.update(b)
+    return h.hexdigest()
+
+def _v6_col_digest(rows, k):
+    h = _v6_hashlib.sha256()
+    for r in rows:
+        h.update((r[0]+'\x1f'+r[k]+'\n').encode())
+    return h.hexdigest()
+
+for p in (_V6_SUB, _V6_CONTROL):
+    if not p.is_file():
+        raise FileNotFoundError(p)
+if _V6_OUT.exists() or _V6_TMP.exists():
+    raise RuntimeError('V6 refuses stale output/temporary artifacts')
+
+control = _v6_json.loads(_V6_CONTROL.read_text())
+parent_sha = _v6_sha(_V6_SUB)
+if control.get('status') != 'passed' or control.get('output_sha256') != parent_sha:
+    raise RuntimeError('V6 control receipt/output mismatch')
+
+for name in ('_blend_tr', '_blend_cr', '_blend_transformer', '_blend_coatnet'):
+    if name not in globals():
+        raise RuntimeError(f'V6 missing parent component: {name}')
+
+with _V6_SUB.open(newline='', encoding='utf-8') as f:
+    allrows = list(_v6_csv.reader(f))
+if not allrows or allrows[0] != _V6_HEADER:
+    raise RuntimeError('V6 submission schema drift')
+rows = allrows[1:]
+uids = [r[0] for r in rows]
+if not rows or len(set(uids)) != len(uids):
+    raise RuntimeError('V6 UID identity drift')
+for frame, name in ((_blend_transformer, 'transformer'), (_blend_coatnet, 'raptor')):
+    if frame['StudyInstanceUID'].astype(str).tolist() != uids:
+        raise RuntimeError(f'V6 {name} UID order drift')
+
+parent_digests = {t: _v6_col_digest(rows, j+1) for j, t in enumerate(_V6_LABELS)}
+final_rows = [list(r) for r in rows]
+changed = {}
+for target, w in _V6_WEIGHTS.items():
+    tr = _v6_np.asarray(_blend_tr[target].to_numpy(), dtype=_v6_np.float64)
+    cr = _v6_np.asarray(_blend_cr[target].to_numpy(), dtype=_v6_np.float64)
+    if tr.shape != (len(rows),) or cr.shape != (len(rows),) or not (_v6_np.isfinite(tr).all() and _v6_np.isfinite(cr).all()):
+        raise RuntimeError(f'V6 invalid component: {target}')
+    out = _v6_pd.Series((1.0-w)*tr + w*cr).rank(method='average', pct=True).to_numpy(_v6_np.float64)
+    if not _v6_np.isfinite(out).all() or out.min() < 0 or out.max() > 1:
+        raise RuntimeError(f'V6 invalid output: {target}')
+    k = _V6_HEADER.index(target)
+    changed[target] = int(sum(format(float(v), '.17g') != rows[i][k] for i, v in enumerate(out)))
+    for i, v in enumerate(out):
+        final_rows[i][k] = format(float(v), '.17g')
+
+untouched = [t for t in _V6_LABELS if t not in _V6_WEIGHTS]
+for t in untouched:
+    k = _V6_HEADER.index(t)
+    if any(final_rows[i][k] != rows[i][k] for i in range(len(rows))):
+        raise RuntimeError(f'V6 changed untouched target: {t}')
+
+with _V6_TMP.open('w', newline='', encoding='utf-8') as f:
+    w = _v6_csv.writer(f, lineterminator='\n')
+    w.writerow(_V6_HEADER)
+    w.writerows(final_rows)
+
+reload = _v6_pd.read_csv(_V6_TMP, dtype={'StudyInstanceUID': str})
+vals = reload[_V6_LABELS].to_numpy(_v6_np.float64)
+if reload.columns.tolist() != _V6_HEADER or reload['StudyInstanceUID'].tolist() != uids or not _v6_np.isfinite(vals).all() or vals.min() < 0 or vals.max() > 1:
+    raise RuntimeError('V6 serialized output gate failed')
+
+_v6_os.replace(_V6_TMP, _V6_SUB)
+out_sha = _v6_sha(_V6_SUB)
+receipt = {
+    'schema_version': 'v6_fixed_outer_weights_v1',
+    'status': 'passed',
+    'parent_submission_sha256': parent_sha,
+    'output_sha256': out_sha,
+    'fixed_outer_weights': _V6_WEIGHTS,
+    'changed_targets': list(_V6_WEIGHTS),
+    'visible_changed_rows': changed,
+    'untouched_targets': untouched,
+    'source_attribution': 'prvsiyan/the-bee-s-knees-final-rsna-push (V6 outer-weight stress test, Gold58-validated, LB unclaimed by author)',
+    'gold58_evidence_source': {
+        'exact_v38_parent_macro_auc': 0.9419323602942643,
+        'candidate_macro_auc': 0.9479663154248743,
+        'delta': 0.0060339551306100025,
+    },
+    'evidence_boundary': 'Gold58 evidence is from the source author on their own V38 parent; we validate empirically via Kaggle Public LB submission.',
+}
+_V6_OUT.write_text(_v6_json.dumps(receipt, indent=2, sort_keys=True) + '\n')
+print(f"V6_WEIGHT_OVERLAY_PASS output_sha256={out_sha} changed={changed}", flush=True)

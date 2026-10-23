@@ -1,0 +1,172 @@
+{
+ "tag": "pass2_warm",
+ "torch": "2.14.0+rocm7.2",
+ "equivalence_max_abs": {
+  "train": 1.1920928955078125e-06,
+  "eval": 1.1920928955078125e-06
+ },
+ "warm": 10,
+ "steps": 60,
+ "configs": {
+  "baseline_cpu_input": {
+   "segments": {
+    "data_cpu": {
+     "median_ms": 23.8,
+     "mean_ms": 23.7,
+     "p90_ms": 24.3
+    },
+    "h2d": {
+     "median_ms": 12.4,
+     "mean_ms": 12.1,
+     "p90_ms": 12.9
+    },
+    "gpu_prep": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "fwd": {
+     "median_ms": 180.2,
+     "mean_ms": 180.3,
+     "p90_ms": 180.6
+    },
+    "bwd": {
+     "median_ms": 501.5,
+     "mean_ms": 500.7,
+     "p90_ms": 502.5
+    },
+    "opt": {
+     "median_ms": 14.2,
+     "mean_ms": 14.2,
+     "p90_ms": 14.3
+    },
+    "item": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "total": {
+     "median_ms": 731.6,
+     "mean_ms": 731.0,
+     "p90_ms": 733.6
+    }
+   },
+   "warmup_s": 10.6,
+   "skips": 0,
+   "peak_mem_gib": 16.85,
+   "train_part_epoch_min_from_mean": 26.49,
+   "eval": {
+    "total_s": 19.149926012032665,
+    "data_cpu": 1.69,
+    "h2d": 0.79,
+    "gpu_prep": 0.0,
+    "fwd": 16.68
+   },
+   "projected_epoch_min": 26.81
+  },
+  "gpu_input": {
+   "segments": {
+    "data_cpu": {
+     "median_ms": 1.7,
+     "mean_ms": 1.7,
+     "p90_ms": 1.9
+    },
+    "h2d": {
+     "median_ms": 0.8,
+     "mean_ms": 0.8,
+     "p90_ms": 0.8
+    },
+    "gpu_prep": {
+     "median_ms": 0.6,
+     "mean_ms": 0.6,
+     "p90_ms": 0.6
+    },
+    "fwd": {
+     "median_ms": 177.2,
+     "mean_ms": 177.2,
+     "p90_ms": 177.3
+    },
+    "bwd": {
+     "median_ms": 504.4,
+     "mean_ms": 504.7,
+     "p90_ms": 505.2
+    },
+    "opt": {
+     "median_ms": 14.1,
+     "mean_ms": 14.2,
+     "p90_ms": 14.4
+    },
+    "item": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "total": {
+     "median_ms": 698.9,
+     "mean_ms": 699.2,
+     "p90_ms": 699.7
+    }
+   },
+   "warmup_s": 7.0,
+   "skips": 0,
+   "peak_mem_gib": 16.85,
+   "train_part_epoch_min_from_mean": 25.33,
+   "eval": {
+    "total_s": 16.838120196014643,
+    "data_cpu": 0.12,
+    "h2d": 0.16,
+    "gpu_prep": 0.06,
+    "fwd": 16.56
+   },
+   "projected_epoch_min": 25.61
+  },
+  "gpu_input+channels_last": {
+   "segments": {
+    "data_cpu": {
+     "median_ms": 1.7,
+     "mean_ms": 3.2,
+     "p90_ms": 3.9
+    },
+    "h2d": {
+     "median_ms": 0.8,
+     "mean_ms": 1.0,
+     "p90_ms": 1.7
+    },
+    "gpu_prep": {
+     "median_ms": 0.6,
+     "mean_ms": 0.6,
+     "p90_ms": 0.6
+    },
+    "fwd": {
+     "median_ms": 177.7,
+     "mean_ms": 177.8,
+     "p90_ms": 178.0
+    },
+    "bwd": {
+     "median_ms": 505.8,
+     "mean_ms": 505.8,
+     "p90_ms": 506.2
+    },
+    "opt": {
+     "median_ms": 18.7,
+     "mean_ms": 18.8,
+     "p90_ms": 18.9
+    },
+    "item": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "total": {
+     "median_ms": 705.5,
+     "mean_ms": 707.2,
+     "p90_ms": 709.4
+    }
+   },
+   "warmup_s": 7.1,
+   "skips": 0,
+   "peak_mem_gib": 16.87,
+   "train_part_epoch_min_from_mean": 25.62
+  }
+ }
+}

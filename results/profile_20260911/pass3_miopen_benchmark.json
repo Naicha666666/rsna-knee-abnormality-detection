@@ -1,0 +1,60 @@
+{
+ "tag": "pass3_miopen_benchmark",
+ "torch": "2.14.0+rocm7.2",
+ "equivalence_max_abs": {
+  "train": 1.1920928955078125e-06,
+  "eval": 1.1920928955078125e-06
+ },
+ "warm": 30,
+ "steps": 60,
+ "configs": {
+  "gpu_input+miopen_benchmark": {
+   "segments": {
+    "data_cpu": {
+     "median_ms": 1.7,
+     "mean_ms": 1.7,
+     "p90_ms": 1.8
+    },
+    "h2d": {
+     "median_ms": 0.8,
+     "mean_ms": 0.9,
+     "p90_ms": 0.8
+    },
+    "gpu_prep": {
+     "median_ms": 0.6,
+     "mean_ms": 0.6,
+     "p90_ms": 0.6
+    },
+    "fwd": {
+     "median_ms": 177.3,
+     "mean_ms": 177.4,
+     "p90_ms": 177.6
+    },
+    "bwd": {
+     "median_ms": 503.4,
+     "mean_ms": 503.4,
+     "p90_ms": 504.1
+    },
+    "opt": {
+     "median_ms": 14.2,
+     "mean_ms": 14.3,
+     "p90_ms": 14.6
+    },
+    "item": {
+     "median_ms": 0.0,
+     "mean_ms": 0.0,
+     "p90_ms": 0.0
+    },
+    "total": {
+     "median_ms": 698.0,
+     "mean_ms": 698.2,
+     "p90_ms": 699.2
+    }
+   },
+   "warmup_s": 149.5,
+   "skips": 0,
+   "peak_mem_gib": 16.86,
+   "train_part_epoch_min_from_mean": 25.3
+  }
+ }
+}
